@@ -1,6 +1,4 @@
 {
-  "name": "audio-editor",
-  "version": "1.0.0",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
