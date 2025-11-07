@@ -32,7 +32,6 @@
       max-width: 650px;
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
       box-sizing: border-box;
-      text-align: left;
     }
 
     button, select, .upload-btn {
@@ -57,9 +56,11 @@
     select {
       min-width: 200px;
     }
+
     input[type="file"] {
       display: none;
     }
+
     .upload-btn {
       background: #1e3c72;
       display: inline-block;
@@ -81,18 +82,26 @@
       user-select: none;
     }
 
-    /* Hide native audio controls */
     audio {
       display: none;
     }
 
-    canvas#wave {
+    canvas#wave, #audioVisualizer {
       width: 100%;
-      height: 100px;
-      margin-top: 15px;
-      background: rgba(0, 0, 0, 0.25);
       border-radius: 8px;
       display: block;
+      background: rgba(0,0,0,0.25);
+    }
+
+    canvas#wave {
+      height: 100px;
+      margin-top: 15px;
+    }
+
+    #audioVisualizer {
+      height: 70px;
+      margin-top: 20px;
+      background: #111;
     }
 
     .meter {
@@ -111,21 +120,11 @@
       transition: width 0.1s linear;
     }
 
-    /* Audio visualizer canvas */
-    #audioVisualizer {
-      background: #111;
-      border-radius: 10px;
-      margin-top: 20px;
-      width: 100%;
-      height: 70px;
-      display: block;
-      box-sizing: border-box;
-    }
-
-    /* Custom audio player container - now inside .controls */
     #custom-controls {
-      margin-top: 30px;
-      background: rgba(255 255 255 / 0.15); /* lighter background */
+      width: 100%;
+      max-width: 650px;
+      margin-top: 25px;
+      background: #222;
       border-radius: 10px;
       padding: 10px 15px;
       display: flex;
@@ -135,28 +134,24 @@
       font-family: 'Inter', sans-serif;
       user-select: none;
       box-sizing: border-box;
-      width: 100%;
-      max-width: 100%;
     }
 
-    /* Buttons styling */
     #custom-controls button {
       background: none;
       border: none;
       color: #1e3c72;
       font-size: 18px;
       cursor: pointer;
-      padding: 0;
       display: flex;
       align-items: center;
       justify-content: center;
       transition: color 0.2s ease;
     }
+
     #custom-controls button:hover {
       color: #2a5298;
     }
 
-    /* Time display */
     #time {
       min-width: 75px;
       font-size: 14px;
@@ -164,38 +159,34 @@
       user-select: none;
     }
 
-    /* Progress bar container */
     #progressContainer {
       flex-grow: 1;
       height: 8px;
-      background: #e1e9f3; /* much lighter for better contrast */
+      background: #111;
       border-radius: 4px;
       cursor: pointer;
       position: relative;
       overflow: hidden;
     }
 
-    /* Progress bar fill */
     #progressBar {
-      height: 8px;
+      height: 100%;
       width: 0%;
       background: #1e3c72;
       border-radius: 4px;
       transition: width 0.1s linear;
     }
 
-    /* Volume slider style */
     #volumeSlider {
       width: 100px;
       cursor: pointer;
       accent-color: #1e3c72;
     }
 
-    /* Responsive tweaks */
     @media (max-width: 480px) {
       button, select, .upload-btn, label input[type="range"] {
         width: 100%;
-        margin: 10px 0 10px 0;
+        margin: 10px 0;
       }
       label {
         display: block;
@@ -208,6 +199,17 @@
       #volumeSlider {
         width: 100%;
       }
+    }
+
+    /* Recording indicator */
+    .recording {
+      background: #ff4d4d !important;
+      animation: pulse 1s infinite alternate;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      100% { transform: scale(1.05); }
     }
   </style>
 </head>
@@ -235,28 +237,20 @@
     <canvas id="wave"></canvas>
     <div class="meter"><div class="meter-fill" id="meterFill"></div></div>
 
-    <!-- Hidden native audio element -->
     <audio id="player" preload="metadata"></audio>
-
-    <!-- Audio waveform visualizer canvas -->
     <canvas id="audioVisualizer"></canvas>
+  </div>
 
-    <!-- Custom audio player placed inside controls -->
-    <div id="custom-controls">
-      <button id="playPause">▶️</button>
-      <div id="time">0:00 / 0:00</div>
-      <div id="progressContainer">
-        <div id="progressBar"></div>
-      </div>
-      <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="1" />
+  <div id="custom-controls">
+    <button id="playPause">▶️</button>
+    <div id="time">0:00 / 0:00</div>
+    <div id="progressContainer">
+      <div id="progressBar"></div>
     </div>
+    <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="1" />
   </div>
 
   <script>
-    // JavaScript remains the same from previous code (for brevity not repeating here)
-    // Including initialization, recording, playback, visualizer, resizing, etc.
-
-    // ... [JavaScript code from previous snippet] ...
     const fileInput = document.getElementById('audioFile');
     const recordBtn = document.getElementById('recordBtn');
     const stopBtn = document.getElementById('stopBtn');
@@ -297,16 +291,14 @@
           option.textContent = mic.label || `Microphone ${i + 1}`;
           micSelect.appendChild(option);
         });
-      } catch (err) {
-        console.error('Could not enumerate devices:', err);
-      }
+      } catch (err) { console.error(err); }
     }
 
     navigator.mediaDevices.getUserMedia({ audio: true })
       .then(loadMicrophones)
       .catch(console.error);
 
-    fileInput.addEventListener('change', async (e) => {
+    fileInput.addEventListener('change', async e => {
       const file = e.target.files[0];
       if (!file) return;
       initAudioCtx();
@@ -320,16 +312,18 @@
     recordBtn.addEventListener('click', async () => {
       initAudioCtx();
       const deviceId = micSelect.value;
-      const constraints = { audio: { deviceId: deviceId ? { exact: deviceId } : undefined } };
-      if (currentStream) currentStream.getTracks().forEach(track => track.stop());
-      currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+      if (currentStream) currentStream.getTracks().forEach(t => t.stop());
+      currentStream = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: deviceId ? { exact: deviceId } : undefined } });
+
       mediaRecorder = new MediaRecorder(currentStream);
       recordedChunks = [];
+
       const micSource = audioCtx.createMediaStreamSource(currentStream);
       analyser = audioCtx.createAnalyser();
       analyser.fftSize = 2048;
       micSource.connect(analyser);
       visualizeWaveform(analyser);
+
       mediaRecorder.ondataavailable = e => recordedChunks.push(e.data);
       mediaRecorder.onstop = () => {
         const blob = new Blob(recordedChunks, { type: 'audio/webm' });
@@ -338,6 +332,7 @@
         cancelAnimationFrame(animationId);
         meterFill.style.width = '0%';
       };
+
       mediaRecorder.start();
       recordBtn.classList.add('recording');
       recordBtn.textContent = '🔴 Recording...';
@@ -357,25 +352,31 @@
       if (!buffer) return;
       initAudioCtx();
       if (source) source.stop();
+
       source = audioCtx.createBufferSource();
       source.buffer = buffer;
       source.playbackRate.value = parseFloat(speedControl.value);
+
       const gainNode = audioCtx.createGain();
       gainNode.gain.value = parseFloat(gainControl.value);
+
       const convolver = audioCtx.createConvolver();
-      const reverbAmount = parseFloat(reverbControl.value);
       const impulse = audioCtx.createBuffer(2, audioCtx.sampleRate * 3, audioCtx.sampleRate);
+      const reverbAmount = parseFloat(reverbControl.value);
       for (let i = 0; i < impulse.length; i++) {
         impulse.getChannelData(0)[i] = (Math.random() * 2 - 1) * reverbAmount;
         impulse.getChannelData(1)[i] = (Math.random() * 2 - 1) * reverbAmount;
       }
       convolver.buffer = impulse;
+
       analyser = audioCtx.createAnalyser();
       analyser.fftSize = 2048;
+
       source.connect(convolver);
       convolver.connect(gainNode);
       gainNode.connect(analyser);
       analyser.connect(audioCtx.destination);
+
       visualizeWaveform(analyser);
       source.start();
     });
@@ -397,8 +398,7 @@
         ctx.beginPath();
 
         const sliceWidth = waveCanvas.width / bufferLength;
-        let x = 0;
-        let sum = 0;
+        let x = 0, sum = 0;
 
         for (let i = 0; i < bufferLength; i++) {
           const v = dataArray[i] / 128.0;
@@ -408,13 +408,9 @@
           x += sliceWidth;
           sum += Math.abs(v - 1);
         }
-
         ctx.stroke();
-
-        const level = Math.min(100, (sum / bufferLength) * 200);
-        meterFill.style.width = level + '%';
+        meterFill.style.width = Math.min(100, (sum / bufferLength) * 200) + '%';
       }
-
       draw();
     }
 
@@ -427,48 +423,28 @@
       a.click();
     });
 
-    playPause.addEventListener('click', () => {
-      if (player.paused) player.play();
-      else player.pause();
-    });
+    playPause.addEventListener('click', () => player.paused ? player.play() : player.pause());
 
-    player.addEventListener('play', () => {
-      playPause.textContent = '⏸️';
-    });
-
-    player.addEventListener('pause', () => {
-      playPause.textContent = '▶️';
-    });
+    player.addEventListener('play', () => playPause.textContent = '⏸️');
+    player.addEventListener('pause', () => playPause.textContent = '▶️');
 
     player.addEventListener('timeupdate', () => {
       const current = player.currentTime;
       const duration = player.duration || 0;
-      const percent = (current / duration) * 100;
-      progressBar.style.width = percent + '%';
+      progressBar.style.width = (current / duration * 100) + '%';
 
-      function formatTime(t) {
-        const m = Math.floor(t / 60);
-        const s = Math.floor(t % 60);
-        return m + ':' + (s < 10 ? '0' + s : s);
-      }
+      const formatTime = t => `${Math.floor(t / 60)}:${Math.floor(t % 60).toString().padStart(2,'0')}`;
       timeDisplay.textContent = `${formatTime(current)} / ${formatTime(duration)}`;
     });
 
     progressContainer.addEventListener('click', e => {
       const rect = progressContainer.getBoundingClientRect();
-      const clickX = e.clientX - rect.left;
-      const width = rect.width;
-      const newTime = (clickX / width) * player.duration;
-      player.currentTime = newTime;
+      player.currentTime = ((e.clientX - rect.left) / rect.width) * player.duration;
     });
 
     volumeSlider.addEventListener('input', () => {
       player.volume = volumeSlider.value;
-      if (player.volume === 0) {
-        volumeSlider.style.accentColor = '#ff4d4d';
-      } else {
-        volumeSlider.style.accentColor = '#1e3c72';
-      }
+      volumeSlider.style.accentColor = player.volume === 0 ? '#ff4d4d' : '#1e3c72';
     });
 
     function setupVisualizer() {
@@ -490,13 +466,17 @@
       function draw() {
         requestAnimationFrame(draw);
         analyser.getByteTimeDomainData(dataArray);
+
         visualCtx.fillStyle = '#111';
         visualCtx.fillRect(0, 0, audioVisualizer.width, audioVisualizer.height);
+
         visualCtx.lineWidth = 2;
         visualCtx.strokeStyle = '#1e3c72';
         visualCtx.beginPath();
-        const sliceWidth = audioVisualizer.width / bufferLength;
+
         let x = 0;
+        const sliceWidth = audioVisualizer.width / bufferLength;
+
         for (let i = 0; i < bufferLength; i++) {
           const v = dataArray[i] / 128.0;
           const y = v * audioVisualizer.height / 2;
@@ -504,39 +484,23 @@
           else visualCtx.lineTo(x, y);
           x += sliceWidth;
         }
-        visualCtx.lineTo(audioVisualizer.width, audioVisualizer.height / 2);
         visualCtx.stroke();
       }
-
       draw();
     }
 
-    // Resize canvases on window resize for sharpness and responsiveness
     function resizeCanvases() {
-      const dpr = window.devicePixelRatio || 1;
-
-      waveCanvas.width = waveCanvas.clientWidth * dpr;
-      waveCanvas.height = waveCanvas.clientHeight * dpr;
-      waveCanvas.getContext('2d').setTransform(1, 0, 0, 1, 0, 0);
-      waveCanvas.getContext('2d').scale(dpr, dpr);
-
-      audioVisualizer.width = audioVisualizer.clientWidth * dpr;
-      audioVisualizer.height = audioVisualizer.clientHeight * dpr;
-      visualCtx.setTransform(1, 0, 0, 1, 0, 0);
-      visualCtx.scale(dpr, dpr);
+      [waveCanvas, audioVisualizer].forEach(canvas => {
+        const ctx = canvas.getContext('2d');
+        canvas.width = canvas.clientWidth * devicePixelRatio;
+        canvas.height = canvas.clientHeight * devicePixelRatio;
+        ctx.scale(devicePixelRatio, devicePixelRatio);
+      });
     }
 
     window.addEventListener('resize', resizeCanvases);
-
-    window.onload = () => {
-      resizeCanvases();
-    };
-
-    player.addEventListener('loadedmetadata', () => {
-      setupVisualizer();
-    });
-
-    loadMicrophones();
+    resizeCanvases();
+    player.addEventListener('loadedmetadata', setupVisualizer);
   </script>
 </body>
 </html>
