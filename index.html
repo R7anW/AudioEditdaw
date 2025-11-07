@@ -62,21 +62,39 @@
       margin: 6px 0;
     }
 
-    /* Modern custom player styling */
-    audio {
-      width: 100%;
-      margin-top: 20px;
-      filter: hue-rotate(200deg) saturate(1.5);
-    }
-    audio::-webkit-media-controls-panel {
-      background-color: rgba(10, 30, 60, 0.8);
-    }
-    audio::-webkit-media-controls-play-button,
-    audio::-webkit-media-controls-timeline,
-    audio::-webkit-media-controls-current-time-display,
-    audio::-webkit-media-controls-time-remaining-display {
-      color: #00aaff !important;
-      filter: hue-rotate(190deg) brightness(1.2);
+  /* 🎵 Custom-styled audio player */
+audio {
+  width: 100%;
+  margin-top: 20px;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+/* Background of the entire control bar */
+audio::-webkit-media-controls-panel {
+  background-color: #222 !important; /* dark grey */
+  border-radius: 10px;
+}
+
+/* Play/Pause/Volume/Time text in blue */
+audio::-webkit-media-controls-play-button,
+audio::-webkit-media-controls-current-time-display,
+audio::-webkit-media-controls-time-remaining-display,
+audio::-webkit-media-controls-timeline,
+audio::-webkit-media-controls-mute-button,
+audio::-webkit-media-controls-volume-slider {
+  filter: invert(41%) sepia(82%) saturate(1298%) hue-rotate(195deg) brightness(100%) contrast(101%);
+}
+
+/* Make the timeline and icons match your blue theme */
+audio::-webkit-media-controls-timeline {
+  background-color: #1e3c72;
+}
+
+audio::-webkit-media-controls-volume-slider {
+  background-color: #1e3c72;
+}
+
     }
 
     #recordBtn.recording {
