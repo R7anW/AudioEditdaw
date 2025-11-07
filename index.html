@@ -1,0 +1,88 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Audio Editor</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { background-color: #121212; color: #fff; }
+    .container { margin-top: 50px; }
+    .btn { margin: 5px; }
+  </style>
+</head>
+<body>
+  <div class="container text-center">
+    <h1>🎧 Audio Editor</h1>
+    <input type="file" id="audioUpload" accept="audio/*" class="form-control" />
+    <br />
+    <button class="btn btn-primary" onclick="startRecording()">Record</button>
+    <button class="btn btn-danger" onclick="stopRecording()">Stop</button>
+    <br />
+    <audio id="audioPlayer" controls></audio>
+    <br />
+    <button class="btn btn-secondary" onclick="applyReverb()">Apply Reverb</button>
+    <button class="btn btn-success" onclick="exportAudio()">Export</button>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/ffmpeg.wasm@0.10.1/dist/ffmpeg.min.js"></script>
+  <script>
+    let audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    let sourceNode, recorder, audioChunks = [], audioBuffer;
+
+    document.getElementById('audioUpload').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        audioContext.decodeAudioData(ev.target.result, function(buffer) {
+          audioBuffer = buffer;
+          playAudio(buffer);
+        });
+      };
+      reader.readAsArrayBuffer(file);
+    });
+
+    function playAudio(buffer) {
+      sourceNode = audioContext.createBufferSource();
+      sourceNode.buffer = buffer;
+      sourceNode.connect(audioContext.destination);
+      sourceNode.start();
+    }
+
+    function startRecording() {
+      navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+        recorder = new MediaRecorder(stream);
+        recorder.ondataavailable = e => audioChunks.push(e.data);
+        recorder.onstop = () => {
+          const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+          const audioUrl = URL.createObjectURL(audioBlob);
+          document.getElementById('audioPlayer').src = audioUrl;
+        };
+        recorder.start();
+      });
+    }
+
+    function stopRecording() {
+      recorder.stop();
+    }
+
+    function applyReverb() {
+      if (!audioBuffer) return alert("No audio loaded");
+      const convolver = audioContext.createConvolver();
+      convolver.buffer = audioBuffer;
+      sourceNode = audioContext.createBufferSource();
+      sourceNode.buffer = audioBuffer;
+      sourceNode.connect(convolver);
+      convolver.connect(audioContext.destination);
+      sourceNode.start();
+      alert("Reverb applied (demo)");
+    }
+
+    async function exportAudio() {
+      alert("Exporting audio... (demo)");
+      // Real export logic would use ffmpeg.wasm to convert formats
+    }
+  </script>
+</body>
+</html>
