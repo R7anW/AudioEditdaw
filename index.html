@@ -18,9 +18,7 @@
       text-align: center;
     }
 
-    h1 {
-      margin-bottom: 0.5em;
-    }
+    h1 { margin-bottom: 0.5em; }
 
     .controls {
       background: rgba(255, 255, 255, 0.08);
@@ -49,12 +47,8 @@
     }
 
     select { min-width: 200px; }
-
     input[type="file"] { display: none; }
-
-    .upload-btn {
-      background: #1e3c72;
-    }
+    .upload-btn { background: #1e3c72; }
 
     input[type="range"] {
       width: 180px;
@@ -69,7 +63,6 @@
       margin: 6px 0;
     }
 
-    /* Audio Player Styling */
     audio {
       margin-top: 20px;
       width: 100%;
@@ -82,19 +75,11 @@
       border-radius: 10px;
     }
 
-    audio::-webkit-media-controls-play-button,
-    audio::-webkit-media-controls-timeline,
-    audio::-webkit-media-controls-current-time-display,
-    audio::-webkit-media-controls-time-remaining-display,
-    audio::-webkit-media-controls-volume-slider {
-      filter: invert(1) brightness(0.85);
-    }
-
-    /* Recording indicator */
     #recordBtn.recording {
       background: #e63946 !important;
       animation: pulse 1.2s infinite;
     }
+
     @keyframes pulse {
       0% { box-shadow: 0 0 0 0 rgba(230,57,70,0.6); }
       70% { box-shadow: 0 0 0 10px rgba(230,57,70,0); }
@@ -103,10 +88,11 @@
 
     canvas#wave {
       width: 100%;
-      height: 80px;
+      height: 100px;
       margin-top: 15px;
-      background: rgba(0,0,0,0.25);
+      background: rgba(0, 0, 0, 0.25);
       border-radius: 8px;
+      display: block;
     }
 
     .meter {
@@ -117,6 +103,7 @@
       margin-top: 8px;
       overflow: hidden;
     }
+
     .meter-fill {
       height: 100%;
       background: #00ffb3;
@@ -144,8 +131,7 @@
     </div>
 
     <button id="playBtn" disabled>▶️ Play</button>
-    <button id="exportWavBtn" disabled>💾 Export WAV</button>
-    <button id="exportMp3Btn" disabled>🎵 Export MP3</button>
+    <button id="exportBtn" disabled>💾 Export WAV</button>
 
     <canvas id="wave"></canvas>
     <div class="meter"><div class="meter-fill" id="meterFill"></div></div>
@@ -157,8 +143,7 @@
     const recordBtn = document.getElementById('recordBtn');
     const stopBtn = document.getElementById('stopBtn');
     const playBtn = document.getElementById('playBtn');
-    const exportWavBtn = document.getElementById('exportWavBtn');
-    const exportMp3Btn = document.getElementById('exportMp3Btn');
+    const exportBtn = document.getElementById('exportBtn');
     const micSelect = document.getElementById('micSelect');
     const reverbControl = document.getElementById('reverb');
     const gainControl = document.getElementById('gain');
@@ -168,7 +153,7 @@
     const meterFill = document.getElementById('meterFill');
 
     let audioCtx, buffer, mediaRecorder, recordedChunks = [];
-    let currentStream = null, analyser, animationId;
+    let currentStream = null, analyser, source, animationId;
 
     function initAudioCtx() {
       if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -176,7 +161,7 @@
 
     async function loadMicrophones() {
       const devices = await navigator.mediaDevices.enumerateDevices();
-      const mics = devices.filter(device => device.kind === 'audioinput');
+      const mics = devices.filter(d => d.kind === 'audioinput');
       micSelect.innerHTML = '';
       mics.forEach((mic, i) => {
         const option = document.createElement('option');
@@ -188,7 +173,7 @@
 
     navigator.mediaDevices.getUserMedia({ audio: true })
       .then(loadMicrophones)
-      .catch(err => console.error('Mic access error:', err));
+      .catch(console.error);
 
     fileInput.addEventListener('change', async (e) => {
       const file = e.target.files[0];
@@ -197,10 +182,8 @@
       const arrayBuffer = await file.arrayBuffer();
       buffer = await audioCtx.decodeAudioData(arrayBuffer);
       playBtn.disabled = false;
-      exportWavBtn.disabled = false;
-      exportMp3Btn.disabled = false;
+      exportBtn.disabled = false;
       player.src = URL.createObjectURL(file);
-      drawWaveform(buffer);
     });
 
     recordBtn.addEventListener('click', async () => {
@@ -209,24 +192,22 @@
       const constraints = { audio: { deviceId: deviceId ? { exact: deviceId } : undefined } };
 
       if (currentStream) currentStream.getTracks().forEach(track => track.stop());
-
       currentStream = await navigator.mediaDevices.getUserMedia(constraints);
       mediaRecorder = new MediaRecorder(currentStream);
       recordedChunks = [];
 
-      // volume meter
-      const source = audioCtx.createMediaStreamSource(currentStream);
+      const micSource = audioCtx.createMediaStreamSource(currentStream);
       analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 256;
-      source.connect(analyser);
-      visualizeWave(analyser);
+      analyser.fftSize = 2048;
+      micSource.connect(analyser);
 
-      mediaRecorder.ondataavailable = (e) => recordedChunks.push(e.data);
+      visualizeWaveform(analyser);
+
+      mediaRecorder.ondataavailable = e => recordedChunks.push(e.data);
       mediaRecorder.onstop = () => {
         const blob = new Blob(recordedChunks, { type: 'audio/webm' });
         player.src = URL.createObjectURL(blob);
-        exportWavBtn.disabled = false;
-        exportMp3Btn.disabled = false;
+        exportBtn.disabled = false;
         cancelAnimationFrame(animationId);
         meterFill.style.width = '0%';
       };
@@ -239,9 +220,7 @@
     });
 
     stopBtn.addEventListener('click', () => {
-      if (mediaRecorder && mediaRecorder.state === 'recording') {
-        mediaRecorder.stop();
-      }
+      if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
       recordBtn.classList.remove('recording');
       recordBtn.textContent = '🎙️ Record';
       recordBtn.disabled = false;
@@ -250,20 +229,18 @@
 
     playBtn.addEventListener('click', () => {
       if (!buffer) return;
-      if (audioCtx.state === 'suspended') audioCtx.resume();
+      initAudioCtx();
 
-      const reverbAmount = parseFloat(reverbControl.value);
-      const gainValue = parseFloat(gainControl.value);
-      const speedValue = parseFloat(speedControl.value);
-
-      const source = audioCtx.createBufferSource();
+      if (source) source.stop(); // prevent overlapping playback
+      source = audioCtx.createBufferSource();
       source.buffer = buffer;
-      source.playbackRate.value = speedValue;
+      source.playbackRate.value = parseFloat(speedControl.value);
 
       const gainNode = audioCtx.createGain();
-      gainNode.gain.value = gainValue;
+      gainNode.gain.value = parseFloat(gainControl.value);
 
       const convolver = audioCtx.createConvolver();
+      const reverbAmount = parseFloat(reverbControl.value);
       const impulse = audioCtx.createBuffer(2, audioCtx.sampleRate * 3, audioCtx.sampleRate);
       for (let i = 0; i < impulse.length; i++) {
         impulse.getChannelData(0)[i] = (Math.random() * 2 - 1) * reverbAmount;
@@ -271,76 +248,63 @@
       }
       convolver.buffer = impulse;
 
-      if (analyser) cancelAnimationFrame(animationId);
       analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 256;
+      analyser.fftSize = 2048;
 
       source.connect(convolver);
       convolver.connect(gainNode);
       gainNode.connect(analyser);
       analyser.connect(audioCtx.destination);
 
-      visualizeWave(analyser);
-
+      visualizeWaveform(analyser);
       source.start();
     });
 
-    function drawWaveform(buffer) {
+    function visualizeWaveform(analyser) {
       const ctx = waveCanvas.getContext('2d');
-      const data = buffer.getChannelData(0);
-      const step = Math.ceil(data.length / waveCanvas.width);
-      const amp = waveCanvas.height / 2;
-      ctx.clearRect(0, 0, waveCanvas.width, waveCanvas.height);
-      ctx.beginPath();
-      ctx.strokeStyle = '#00ffb3';
-      for (let i = 0; i < waveCanvas.width; i++) {
-        const min = data[i * step];
-        ctx.lineTo(i, amp + min * amp);
-      }
-      ctx.stroke();
-    }
-
-    function visualizeWave(analyser) {
-      const ctx = waveCanvas.getContext('2d');
-      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      const bufferLength = analyser.fftSize;
+      const dataArray = new Uint8Array(bufferLength);
 
       function draw() {
         animationId = requestAnimationFrame(draw);
         analyser.getByteTimeDomainData(dataArray);
-        ctx.fillStyle = 'rgba(0,0,0,0.25)';
+
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
         ctx.fillRect(0, 0, waveCanvas.width, waveCanvas.height);
+
         ctx.lineWidth = 2;
         ctx.strokeStyle = '#00ffb3';
         ctx.beginPath();
 
-        const sliceWidth = waveCanvas.width / dataArray.length;
+        const sliceWidth = waveCanvas.width * 1.0 / bufferLength;
         let x = 0;
-        let rms = 0;
-        for (let i = 0; i < dataArray.length; i++) {
+        let sum = 0;
+
+        for (let i = 0; i < bufferLength; i++) {
           const v = dataArray[i] / 128.0;
           const y = v * waveCanvas.height / 2;
           ctx.lineTo(x, y);
           x += sliceWidth;
-          rms += (v - 1) ** 2;
+          sum += Math.abs(v - 1);
         }
+
         ctx.stroke();
-        const level = Math.min(100, Math.sqrt(rms / dataArray.length) * 150);
+
+        const level = Math.min(100, (sum / bufferLength) * 200);
         meterFill.style.width = level + '%';
       }
+
       draw();
     }
 
-    async function exportAudio(type) {
+    exportBtn.addEventListener('click', async () => {
       const response = await fetch(player.src);
       const blob = await response.blob();
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = `edited_audio.${type}`;
+      a.download = 'edited_audio.wav';
       a.click();
-    }
-
-    exportWavBtn.addEventListener('click', () => exportAudio('wav'));
-    exportMp3Btn.addEventListener('click', () => exportAudio('mp3'));
+    });
   </script>
 </body>
 </html>
