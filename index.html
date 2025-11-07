@@ -136,9 +136,9 @@
     /* Progress bar container */
     #progressContainer {
       flex-grow: 1;
-      height: 6px;
+      height: 8px; /* slightly bigger for easier clicking */
       background: #111;
-      border-radius: 3px;
+      border-radius: 4px;
       cursor: pointer;
       position: relative;
       overflow: hidden;
@@ -146,11 +146,28 @@
 
     /* Progress bar fill */
     #progressBar {
-      height: 6px;
+      height: 8px;
       width: 0%;
       background: #1e3c72;
-      border-radius: 3px;
+      border-radius: 4px;
       transition: width 0.1s linear;
+    }
+
+    /* Volume slider style */
+    #volumeSlider {
+      width: 100px;
+      cursor: pointer;
+      accent-color: #1e3c72;
+    }
+
+    /* Audio visualizer canvas */
+    #audioVisualizer {
+      background: #111;
+      border-radius: 10px;
+      margin-top: 10px;
+      width: 100%;
+      height: 60px;
+      display: block;
     }
   </style>
 </head>
@@ -181,6 +198,9 @@
     <!-- Hidden native audio element -->
     <audio id="player" preload="metadata"></audio>
 
+    <!-- Audio visualizer canvas -->
+    <canvas id="audioVisualizer"></canvas>
+
     <!-- Custom audio player -->
     <div id="custom-controls">
       <button id="playPause">▶️</button>
@@ -188,7 +208,7 @@
       <div id="progressContainer">
         <div id="progressBar"></div>
       </div>
-      <button id="muteBtn">🔊</button>
+      <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="1" />
     </div>
   </div>
 
@@ -211,7 +231,11 @@
     const timeDisplay = document.getElementById('time');
     const progressContainer = document.getElementById('progressContainer');
     const progressBar = document.getElementById('progressBar');
-    const muteBtn = document.getElementById('muteBtn');
+    const volumeSlider = document.getElementById('volumeSlider');
+
+    // Visualizer canvas & context
+    const audioVisualizer = document.getElementById('audioVisualizer');
+    const visualCtx = audioVisualizer.getContext('2d');
 
     let audioCtx, buffer, mediaRecorder, recordedChunks = [];
     let currentStream = null, analyser, source, animationId;
@@ -409,87 +433,81 @@
       player.currentTime = newTime;
     });
 
-    // Mute/unmute toggle
-    muteBtn.addEventListener('click', () => {
-      player.muted = !player.muted;
-      muteBtn.textContent = player.muted ? '🔈' : '🔊';
+    // Volume slider control
+    volumeSlider.addEventListener('input', () => {
+      player.volume = volumeSlider.value;
+      if (player.volume === 0) {
+        volumeSlider.style.accentColor = '#ff4d4d'; // red tint when muted
+      } else {
+        volumeSlider.style.accentColor = '#1e3c72'; // normal blue tint
+      }
     });
 
-    const volumeSlider = document.getElementById('volumeSlider');
-const audioVisualizer = document.getElementById('audioVisualizer');
-const visualCtx = audioVisualizer.getContext('2d');
+    // ========== Audio Visualizer Logic ===========
 
-volumeSlider.addEventListener('input', () => {
-  player.volume = volumeSlider.value;
-  if (player.volume === 0) {
-    volumeSlider.style.accentColor = '#ff4d4d'; // red tint when muted
-  } else {
-    volumeSlider.style.accentColor = '#1e3c72'; // normal blue tint
-  }
-});
+    // Setup audio context and analyser for visualizer linked to the player element
+    function setupVisualizer() {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (!source) source = audioCtx.createMediaElementSource(player);
 
-// Setup audio context and analyser for visualizer linked to the player element
-function setupVisualizer() {
-  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  if (!source) source = audioCtx.createMediaElementSource(player);
-
-  if (!analyser) {
-    analyser = audioCtx.createAnalyser();
-    analyser.fftSize = 256;
-    source.connect(analyser);
-    analyser.connect(audioCtx.destination);
-  }
-  visualizeAudio();
-}
-
-function visualizeAudio() {
-  const bufferLength = analyser.frequencyBinCount;
-  const dataArray = new Uint8Array(bufferLength);
-
-  function draw() {
-    requestAnimationFrame(draw);
-
-    analyser.getByteFrequencyData(dataArray);
-
-    visualCtx.fillStyle = '#111';
-    visualCtx.fillRect(0, 0, audioVisualizer.width, audioVisualizer.height);
-
-    const barWidth = (audioVisualizer.width / bufferLength) * 1.5;
-    let x = 0;
-
-    for (let i = 0; i < bufferLength; i++) {
-      const barHeight = dataArray[i] / 2;
-      visualCtx.fillStyle = `rgb(${barHeight + 100}, 255, 180)`;
-      visualCtx.fillRect(x, audioVisualizer.height - barHeight, barWidth, barHeight);
-      x += barWidth + 1;
+      if (!analyser) {
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 256;
+        source.connect(analyser);
+        analyser.connect(audioCtx.destination);
+      }
+      visualizeAudio();
     }
-  }
-  draw();
-}
 
-// Resize visualizer canvas on window resize
-function resizeVisualizer() {
-  audioVisualizer.width = audioVisualizer.clientWidth * window.devicePixelRatio;
-  audioVisualizer.height = audioVisualizer.clientHeight * window.devicePixelRatio;
-  visualCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
-}
-window.addEventListener('resize', resizeVisualizer);
-resizeVisualizer();
+    function visualizeAudio() {
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
 
-// Start visualizer once the audio metadata is loaded (duration is known)
-player.addEventListener('loadedmetadata', () => {
-  if (!source) {
-    setupVisualizer();
-  }
-});
+      function draw() {
+        requestAnimationFrame(draw);
 
-// Resume audio context on first user interaction to comply with browser autoplay policies
-document.body.addEventListener('click', () => {
-  if (audioCtx && audioCtx.state === 'suspended') {
-    audioCtx.resume();
-  }
-});
+        analyser.getByteFrequencyData(dataArray);
 
+        visualCtx.clearRect(0, 0, audioVisualizer.width, audioVisualizer.height);
+        visualCtx.fillStyle = '#111';
+        visualCtx.fillRect(0, 0, audioVisualizer.width, audioVisualizer.height);
+
+        const barWidth = (audioVisualizer.width / bufferLength) * 1.5;
+        let x = 0;
+
+        for (let i = 0; i < bufferLength; i++) {
+          const barHeight = dataArray[i] / 2;
+          visualCtx.fillStyle = `rgb(${barHeight + 100}, 255, 180)`;
+          visualCtx.fillRect(x, audioVisualizer.height - barHeight, barWidth, barHeight);
+          x += barWidth + 1;
+        }
+      }
+      draw();
+    }
+
+    // Resize visualizer canvas on window resize
+    function resizeVisualizer() {
+      const dpr = window.devicePixelRatio || 1;
+      audioVisualizer.width = audioVisualizer.clientWidth * dpr;
+      audioVisualizer.height = audioVisualizer.clientHeight * dpr;
+      visualCtx.scale(dpr, dpr);
+    }
+    window.addEventListener('resize', resizeVisualizer);
+    resizeVisualizer();
+
+    // Start visualizer once the audio metadata is loaded (duration is known)
+    player.addEventListener('loadedmetadata', () => {
+      if (!source) {
+        setupVisualizer();
+      }
+    });
+
+    // Resume audio context on first user interaction to comply with browser autoplay policies
+    document.body.addEventListener('click', () => {
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    });
   </script>
 </body>
 </html>
