@@ -62,7 +62,7 @@
       margin: 6px 0;
     }
 
-  /* 🎵 Custom-styled audio player */
+/* 🎧 Custom-styled compact audio player */
 audio {
   width: 100%;
   margin-top: 20px;
@@ -70,19 +70,28 @@ audio {
   overflow: hidden;
 }
 
-/* 🎧 Custom-styled slim audio player */
-audio {
-  width: 100%;
-  margin-top: 20px;
-  border-radius: 10px;
-  height: 32px; /* back to a compact height */
-  overflow: hidden;
-}
-
-/* Dark grey background for control bar */
+/* Dark grey background for player panel */
 audio::-webkit-media-controls-panel {
   background-color: #222 !important;
   border-radius: 10px;
+}
+
+/* Blue icons, text, and menu button */
+audio::-webkit-media-controls-play-button,
+audio::-webkit-media-controls-current-time-display,
+audio::-webkit-media-controls-time-remaining-display,
+audio::-webkit-media-controls-mute-button,
+audio::-webkit-media-controls-volume-slider,
+audio::-webkit-media-controls-overflow-button {
+  filter: invert(41%) sepia(82%) saturate(1298%) hue-rotate(195deg) brightness(100%) contrast(101%);
+}
+
+/* 🎚️ Make the scrub (progress) bar slim and blue */
+audio::-webkit-media-controls-timeline {
+  background-color: transparent; /* no thick background */
+  height: 4px;                   /* thin progress bar */
+  border-radius: 2px;
+  filter: invert(41%) sepia(82%) saturate(1298%) hue-rotate(195deg) brightness(100%) contrast(101%);
 }
 
 /* Make all icons, text, and progress bar the same blue tone */
