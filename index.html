@@ -1,506 +1,255 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Audio Studio Pro</title>
-  <style>
-    body {
-      font-family: 'Inter', sans-serif;
-      background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
-      color: white;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-start;
-      min-height: 100vh;
-      margin: 0;
-      padding: 20px 15px 40px;
-      text-align: center;
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audio Player with Visualizer</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background: #111;
+    color: #eee;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+  }
 
-    h1 {
-      margin-bottom: 0.6em;
-      font-weight: 600;
-    }
+  .controls {
+    width: 100%;
+    max-width: 700px;
+  }
 
-    .controls {
-      background: rgba(255, 255, 255, 0.08);
-      padding: 25px 25px 30px;
-      border-radius: 15px;
-      width: 100%;
-      max-width: 650px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-      box-sizing: border-box;
-    }
+  /* Visualizer Box */
+  .visualizer-box {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
 
-    button, select, .upload-btn {
-      background: #1e3c72;
-      border: none;
-      color: white;
-      padding: 10px 20px;
-      border-radius: 5px;
-      cursor: pointer;
-      font-size: 1em;
-      margin: 10px 8px 10px 0;
-      transition: all 0.25s ease;
-      user-select: none;
-      vertical-align: middle;
-    }
+  .visualizer-box canvas {
+    width: 100%;
+    height: 180px;
+    display: block;
+    border-radius: 8px;
+  }
 
-    button:hover, select:hover, .upload-btn:hover {
-      background: #2a5298;
-      transform: translateY(-2px);
-    }
+  /* Player Box */
+  .player-box {
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 15px;
+    margin-bottom: 20px;
+  }
 
-    select {
-      min-width: 200px;
-    }
+  .player-box audio {
+    width: 100%;
+    margin-bottom: 10px;
+  }
 
-    input[type="file"] {
-      display: none;
-    }
+  #custom-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
 
-    .upload-btn {
-      background: #1e3c72;
-      display: inline-block;
-      margin-bottom: 20px;
-    }
+  #progressContainer {
+    flex: 1;
+    height: 6px;
+    background: #444;
+    border-radius: 3px;
+    cursor: pointer;
+    position: relative;
+  }
 
-    input[type="range"] {
-      width: 180px;
-      accent-color: #2a5298;
-      vertical-align: middle;
-    }
+  #progressBar {
+    height: 100%;
+    background: #0f0;
+    width: 0%;
+    border-radius: 3px;
+  }
 
-    label {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      margin: 8px 12px 8px 0;
-      font-size: 0.9em;
-      user-select: none;
-    }
+  input[type=range] {
+    cursor: pointer;
+  }
 
-    audio {
-      display: none;
-    }
+  .upload-btn {
+    display: inline-block;
+    margin-top: 10px;
+    padding: 6px 12px;
+    background: #333;
+    border-radius: 6px;
+    cursor: pointer;
+  }
 
-    canvas#wave, #audioVisualizer {
-      width: 100%;
-      border-radius: 8px;
-      display: block;
-      background: rgba(0,0,0,0.25);
-    }
+  .effect-row label {
+    margin: 0 10px;
+  }
 
-    canvas#wave {
-      height: 100px;
-      margin-top: 15px;
-    }
+  #wave {
+    width: 100%;
+    height: 100px;
+    background: #222;
+    margin-top: 15px;
+    border-radius: 8px;
+  }
 
-    #audioVisualizer {
-      height: 70px;
-      margin-top: 20px;
-      background: #111;
-    }
+  .meter {
+    width: 100%;
+    height: 10px;
+    background: #333;
+    margin-top: 10px;
+    border-radius: 5px;
+  }
 
-    .meter {
-      width: 100%;
-      height: 8px;
-      border-radius: 4px;
-      background: rgba(255,255,255,0.15);
-      margin-top: 8px;
-      overflow: hidden;
-    }
+  .meter-fill {
+    height: 100%;
+    width: 0%;
+    background: #0f0;
+    border-radius: 5px;
+  }
 
-    .meter-fill {
-      height: 100%;
-      background: #00ffb3;
-      width: 0%;
-      transition: width 0.1s linear;
-    }
-
-    #custom-controls {
-      width: 100%;
-      max-width: 650px;
-      margin-top: 25px;
-      background: #222;
-      border-radius: 10px;
-      padding: 10px 15px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      color: #1e3c72;
-      font-family: 'Inter', sans-serif;
-      user-select: none;
-      box-sizing: border-box;
-    }
-
-    #custom-controls button {
-      background: none;
-      border: none;
-      color: #1e3c72;
-      font-size: 18px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: color 0.2s ease;
-    }
-
-    #custom-controls button:hover {
-      color: #2a5298;
-    }
-
-    #time {
-      min-width: 75px;
-      font-size: 14px;
-      font-variant-numeric: tabular-nums;
-      user-select: none;
-    }
-
-    #progressContainer {
-      flex-grow: 1;
-      height: 8px;
-      background: #111;
-      border-radius: 4px;
-      cursor: pointer;
-      position: relative;
-      overflow: hidden;
-    }
-
-    #progressBar {
-      height: 100%;
-      width: 0%;
-      background: #1e3c72;
-      border-radius: 4px;
-      transition: width 0.1s linear;
-    }
-
-    #volumeSlider {
-      width: 100px;
-      cursor: pointer;
-      accent-color: #1e3c72;
-    }
-
-    @media (max-width: 480px) {
-      button, select, .upload-btn, label input[type="range"] {
-        width: 100%;
-        margin: 10px 0;
-      }
-      label {
-        display: block;
-        margin-bottom: 10px;
-      }
-      #custom-controls {
-        flex-wrap: wrap;
-        gap: 10px;
-      }
-      #volumeSlider {
-        width: 100%;
-      }
-    }
-
-    /* Recording indicator */
-    .recording {
-      background: #ff4d4d !important;
-      animation: pulse 1s infinite alternate;
-    }
-
-    @keyframes pulse {
-      0% { transform: scale(1); }
-      100% { transform: scale(1.05); }
-    }
-  </style>
+</style>
 </head>
 <body>
-  <h1>🎧 Audio Studio Pro</h1>
-  <div class="controls">
-    <label class="upload-btn" for="audioFile">📁 Upload Audio</label>
-    <input type="file" id="audioFile" accept="audio/*" /><br />
 
-    <label for="micSelect">🎙️ Microphone:</label>
-    <select id="micSelect"></select><br />
-
-    <button id="recordBtn">🎙️ Record</button>
-    <button id="stopBtn" disabled>⏹️ Stop</button>
-
-    <div class="effect-row" style="margin-top: 10px; display: flex; flex-wrap: wrap; justify-content: center;">
-      <label>Reverb: <input type="range" id="reverb" min="0" max="1" step="0.01" value="0" /></label>
-      <label>Gain: <input type="range" id="gain" min="0" max="2" step="0.01" value="1" /></label>
-      <label>Speed: <input type="range" id="speed" min="0.5" max="2" step="0.01" value="1" /></label>
-    </div>
-
-    <button id="playBtn" disabled style="margin-top: 15px;">▶️ Play</button>
-    <button id="exportBtn" disabled>💾 Export WAV</button>
-
-    <canvas id="wave"></canvas>
-    <div class="meter"><div class="meter-fill" id="meterFill"></div></div>
-
-    <audio id="player" preload="metadata"></audio>
+<div class="controls">
+  <!-- Audio Visualizer Box -->
+  <div class="visualizer-box">
     <canvas id="audioVisualizer"></canvas>
   </div>
 
-  <div id="custom-controls">
-    <button id="playPause">▶️</button>
-    <div id="time">0:00 / 0:00</div>
-    <div id="progressContainer">
-      <div id="progressBar"></div>
+  <!-- Audio Player Box -->
+  <div class="player-box">
+    <audio id="player" preload="metadata" controls></audio>
+    <div id="custom-controls">
+      <button id="playPause">▶️</button>
+      <div id="time">0:00 / 0:00</div>
+      <div id="progressContainer">
+        <div id="progressBar"></div>
+      </div>
+      <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="1" />
     </div>
-    <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="1" />
   </div>
 
-  <script>
-    const fileInput = document.getElementById('audioFile');
-    const recordBtn = document.getElementById('recordBtn');
-    const stopBtn = document.getElementById('stopBtn');
-    const playBtn = document.getElementById('playBtn');
-    const exportBtn = document.getElementById('exportBtn');
-    const micSelect = document.getElementById('micSelect');
-    const reverbControl = document.getElementById('reverb');
-    const gainControl = document.getElementById('gain');
-    const speedControl = document.getElementById('speed');
-    const player = document.getElementById('player');
-    const waveCanvas = document.getElementById('wave');
-    const meterFill = document.getElementById('meterFill');
+  <!-- Upload / Record Controls -->
+  <label class="upload-btn" for="audioFile">📁 Upload Audio</label>
+  <input type="file" id="audioFile" accept="audio/*" /><br />
 
-    const playPause = document.getElementById('playPause');
-    const timeDisplay = document.getElementById('time');
-    const progressContainer = document.getElementById('progressContainer');
-    const progressBar = document.getElementById('progressBar');
-    const volumeSlider = document.getElementById('volumeSlider');
+  <label for="micSelect">🎙️ Microphone:</label>
+  <select id="micSelect"></select><br />
 
-    const audioVisualizer = document.getElementById('audioVisualizer');
-    const visualCtx = audioVisualizer.getContext('2d');
+  <button id="recordBtn">🎙️ Record</button>
+  <button id="stopBtn" disabled>⏹️ Stop</button>
 
-    let audioCtx, buffer, mediaRecorder, recordedChunks = [];
-    let currentStream = null, analyser, source, animationId;
+  <div class="effect-row">
+    <label>Reverb: <input type="range" id="reverb" min="0" max="1" step="0.01" value="0" /></label>
+    <label>Gain: <input type="range" id="gain" min="0" max="2" step="0.01" value="1" /></label>
+    <label>Speed: <input type="range" id="speed" min="0.5" max="2" step="0.01" value="1" /></label>
+  </div>
 
-    function initAudioCtx() {
-      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
+  <button id="playBtn" disabled>▶️ Play</button>
+  <button id="exportBtn" disabled>💾 Export WAV</button>
 
-    async function loadMicrophones() {
-      try {
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const mics = devices.filter(d => d.kind === 'audioinput');
-        micSelect.innerHTML = '';
-        mics.forEach((mic, i) => {
-          const option = document.createElement('option');
-          option.value = mic.deviceId;
-          option.textContent = mic.label || `Microphone ${i + 1}`;
-          micSelect.appendChild(option);
-        });
-      } catch (err) { console.error(err); }
-    }
+  <canvas id="wave"></canvas>
+  <div class="meter"><div class="meter-fill" id="meterFill"></div></div>
+</div>
 
-    navigator.mediaDevices.getUserMedia({ audio: true })
-      .then(loadMicrophones)
-      .catch(console.error);
+<script>
+  // Elements
+  const audioFile = document.getElementById('audioFile');
+  const player = document.getElementById('player');
+  const playPause = document.getElementById('playPause');
+  const timeDisplay = document.getElementById('time');
+  const progressContainer = document.getElementById('progressContainer');
+  const progressBar = document.getElementById('progressBar');
+  const volumeSlider = document.getElementById('volumeSlider');
 
-    fileInput.addEventListener('change', async e => {
-      const file = e.target.files[0];
-      if (!file) return;
-      initAudioCtx();
-      const arrayBuffer = await file.arrayBuffer();
-      buffer = await audioCtx.decodeAudioData(arrayBuffer);
-      playBtn.disabled = false;
-      exportBtn.disabled = false;
-      player.src = URL.createObjectURL(file);
-    });
+  // Audio Context
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  const audioCtx = new AudioContext();
+  let source, analyser;
 
-    recordBtn.addEventListener('click', async () => {
-      initAudioCtx();
-      const deviceId = micSelect.value;
-      if (currentStream) currentStream.getTracks().forEach(t => t.stop());
-      currentStream = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: deviceId ? { exact: deviceId } : undefined } });
+  // Visualizer Setup
+  const canvas = document.getElementById('audioVisualizer');
+  const ctx = canvas.getContext('2d');
 
-      mediaRecorder = new MediaRecorder(currentStream);
-      recordedChunks = [];
+  function resizeCanvas() {
+    canvas.width = canvas.clientWidth * devicePixelRatio;
+    canvas.height = canvas.clientHeight * devicePixelRatio;
+    ctx.scale(devicePixelRatio, devicePixelRatio);
+  }
+  window.addEventListener('resize', resizeCanvas);
+  resizeCanvas();
 
-      const micSource = audioCtx.createMediaStreamSource(currentStream);
-      analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 2048;
-      micSource.connect(analyser);
-      visualizeWaveform(analyser);
+  function createVisualizer() {
+    if (source) source.disconnect();
+    source = audioCtx.createMediaElementSource(player);
+    analyser = audioCtx.createAnalyser();
+    source.connect(analyser);
+    analyser.connect(audioCtx.destination);
+    analyser.fftSize = 256;
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
 
-      mediaRecorder.ondataavailable = e => recordedChunks.push(e.data);
-      mediaRecorder.onstop = () => {
-        const blob = new Blob(recordedChunks, { type: 'audio/webm' });
-        player.src = URL.createObjectURL(blob);
-        exportBtn.disabled = false;
-        cancelAnimationFrame(animationId);
-        meterFill.style.width = '0%';
-      };
+    function draw() {
+      requestAnimationFrame(draw);
+      analyser.getByteFrequencyData(dataArray);
+      ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
 
-      mediaRecorder.start();
-      recordBtn.classList.add('recording');
-      recordBtn.textContent = '🔴 Recording...';
-      recordBtn.disabled = true;
-      stopBtn.disabled = false;
-    });
-
-    stopBtn.addEventListener('click', () => {
-      if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
-      recordBtn.classList.remove('recording');
-      recordBtn.textContent = '🎙️ Record';
-      recordBtn.disabled = false;
-      stopBtn.disabled = true;
-    });
-
-    playBtn.addEventListener('click', () => {
-      if (!buffer) return;
-      initAudioCtx();
-      if (source) source.stop();
-
-      source = audioCtx.createBufferSource();
-      source.buffer = buffer;
-      source.playbackRate.value = parseFloat(speedControl.value);
-
-      const gainNode = audioCtx.createGain();
-      gainNode.gain.value = parseFloat(gainControl.value);
-
-      const convolver = audioCtx.createConvolver();
-      const impulse = audioCtx.createBuffer(2, audioCtx.sampleRate * 3, audioCtx.sampleRate);
-      const reverbAmount = parseFloat(reverbControl.value);
-      for (let i = 0; i < impulse.length; i++) {
-        impulse.getChannelData(0)[i] = (Math.random() * 2 - 1) * reverbAmount;
-        impulse.getChannelData(1)[i] = (Math.random() * 2 - 1) * reverbAmount;
+      const barWidth = canvas.clientWidth / bufferLength;
+      for (let i = 0; i < bufferLength; i++) {
+        const barHeight = dataArray[i] / 2;
+        ctx.fillStyle = `hsl(${i * 2}, 80%, 50%)`;
+        ctx.fillRect(i * barWidth, canvas.clientHeight - barHeight, barWidth, barHeight);
       }
-      convolver.buffer = impulse;
-
-      analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 2048;
-
-      source.connect(convolver);
-      convolver.connect(gainNode);
-      gainNode.connect(analyser);
-      analyser.connect(audioCtx.destination);
-
-      visualizeWaveform(analyser);
-      source.start();
-    });
-
-    function visualizeWaveform(analyser) {
-      const ctx = waveCanvas.getContext('2d');
-      const bufferLength = analyser.fftSize;
-      const dataArray = new Uint8Array(bufferLength);
-
-      function draw() {
-        animationId = requestAnimationFrame(draw);
-        analyser.getByteTimeDomainData(dataArray);
-
-        ctx.fillStyle = 'rgba(0,0,0,0.3)';
-        ctx.fillRect(0, 0, waveCanvas.width, waveCanvas.height);
-
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = '#00ffb3';
-        ctx.beginPath();
-
-        const sliceWidth = waveCanvas.width / bufferLength;
-        let x = 0, sum = 0;
-
-        for (let i = 0; i < bufferLength; i++) {
-          const v = dataArray[i] / 128.0;
-          const y = v * waveCanvas.height / 2;
-          if (i === 0) ctx.moveTo(x, y);
-          else ctx.lineTo(x, y);
-          x += sliceWidth;
-          sum += Math.abs(v - 1);
-        }
-        ctx.stroke();
-        meterFill.style.width = Math.min(100, (sum / bufferLength) * 200) + '%';
-      }
-      draw();
     }
+    draw();
+  }
 
-    exportBtn.addEventListener('click', async () => {
-      const response = await fetch(player.src);
-      const blob = await response.blob();
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'edited_audio.wav';
-      a.click();
-    });
+  // File Upload
+  audioFile.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    player.src = url;
+    player.load();
+    createVisualizer();
+  });
 
-    playPause.addEventListener('click', () => player.paused ? player.play() : player.pause());
+  // Play/Pause
+  playPause.addEventListener('click', () => {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    if (player.paused) player.play();
+    else player.pause();
+  });
 
-    player.addEventListener('play', () => playPause.textContent = '⏸️');
-    player.addEventListener('pause', () => playPause.textContent = '▶️');
+  // Update time and progress
+  player.addEventListener('timeupdate', () => {
+    const minutes = Math.floor(player.currentTime / 60);
+    const seconds = Math.floor(player.currentTime % 60).toString().padStart(2, '0');
+    const totalMinutes = Math.floor(player.duration / 60) || 0;
+    const totalSeconds = Math.floor(player.duration % 60).toString().padStart(2, '0') || '00';
+    timeDisplay.textContent = `${minutes}:${seconds} / ${totalMinutes}:${totalSeconds}`;
+    const progress = (player.currentTime / player.duration) * 100 || 0;
+    progressBar.style.width = progress + '%';
+  });
 
-    player.addEventListener('timeupdate', () => {
-      const current = player.currentTime;
-      const duration = player.duration || 0;
-      progressBar.style.width = (current / duration * 100) + '%';
+  // Progress click
+  progressContainer.addEventListener('click', (e) => {
+    const rect = progressContainer.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const percent = x / rect.width;
+    player.currentTime = percent * player.duration;
+  });
 
-      const formatTime = t => `${Math.floor(t / 60)}:${Math.floor(t % 60).toString().padStart(2,'0')}`;
-      timeDisplay.textContent = `${formatTime(current)} / ${formatTime(duration)}`;
-    });
+  // Volume
+  volumeSlider.addEventListener('input', () => {
+    player.volume = volumeSlider.value;
+  });
+</script>
 
-    progressContainer.addEventListener('click', e => {
-      const rect = progressContainer.getBoundingClientRect();
-      player.currentTime = ((e.clientX - rect.left) / rect.width) * player.duration;
-    });
-
-    volumeSlider.addEventListener('input', () => {
-      player.volume = volumeSlider.value;
-      volumeSlider.style.accentColor = player.volume === 0 ? '#ff4d4d' : '#1e3c72';
-    });
-
-    function setupVisualizer() {
-      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      if (!source) source = audioCtx.createMediaElementSource(player);
-      if (!analyser) {
-        analyser = audioCtx.createAnalyser();
-        analyser.fftSize = 2048;
-        source.connect(analyser);
-        analyser.connect(audioCtx.destination);
-      }
-      visualizeAudioWaveform();
-    }
-
-    function visualizeAudioWaveform() {
-      const bufferLength = analyser.fftSize;
-      const dataArray = new Uint8Array(bufferLength);
-
-      function draw() {
-        requestAnimationFrame(draw);
-        analyser.getByteTimeDomainData(dataArray);
-
-        visualCtx.fillStyle = '#111';
-        visualCtx.fillRect(0, 0, audioVisualizer.width, audioVisualizer.height);
-
-        visualCtx.lineWidth = 2;
-        visualCtx.strokeStyle = '#1e3c72';
-        visualCtx.beginPath();
-
-        let x = 0;
-        const sliceWidth = audioVisualizer.width / bufferLength;
-
-        for (let i = 0; i < bufferLength; i++) {
-          const v = dataArray[i] / 128.0;
-          const y = v * audioVisualizer.height / 2;
-          if (i === 0) visualCtx.moveTo(x, y);
-          else visualCtx.lineTo(x, y);
-          x += sliceWidth;
-        }
-        visualCtx.stroke();
-      }
-      draw();
-    }
-
-    function resizeCanvases() {
-      [waveCanvas, audioVisualizer].forEach(canvas => {
-        const ctx = canvas.getContext('2d');
-        canvas.width = canvas.clientWidth * devicePixelRatio;
-        canvas.height = canvas.clientHeight * devicePixelRatio;
-        ctx.scale(devicePixelRatio, devicePixelRatio);
-      });
-    }
-
-    window.addEventListener('resize', resizeCanvases);
-    resizeCanvases();
-    player.addEventListener('loadedmetadata', setupVisualizer);
-  </script>
 </body>
 </html>
