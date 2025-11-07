@@ -24,16 +24,15 @@
 
     .controls {
       background: rgba(255, 255, 255, 0.08);
-      padding: 20px;
-      border-radius: 10px;
+      padding: 25px;
+      border-radius: 15px;
       width: 90%;
       max-width: 600px;
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
     }
 
-    input[type="file"],
-    button,
-    select {
+    /* General button + select styling */
+    button, select, .upload-btn {
       background: #1e3c72;
       border: none;
       color: white;
@@ -42,22 +41,61 @@
       cursor: pointer;
       font-size: 1em;
       margin: 10px;
-      transition: all 0.2s;
+      transition: all 0.2s ease;
+      display: inline-block;
+      text-decoration: none;
     }
 
-    button:hover,
-    select:hover {
+    button:hover, select:hover, .upload-btn:hover {
       background: #2a5298;
     }
 
+    select {
+      min-width: 200px;
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    /* Custom Upload Button */
+    .upload-btn {
+      display: inline-block;
+      background: #1e3c72;
+      border-radius: 5px;
+    }
+
+    .upload-btn span {
+      vertical-align: middle;
+    }
+
+    /* Sliders */
     input[type="range"] {
       width: 80%;
       margin: 10px 0;
+      accent-color: #2a5298;
     }
 
+    /* Audio Player Styling */
     audio {
-      margin-top: 20px;
+      margin-top: 25px;
       width: 100%;
+      outline: none;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    audio::-webkit-media-controls-panel {
+      background-color: rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+    }
+
+    audio::-webkit-media-controls-play-button,
+    audio::-webkit-media-controls-timeline,
+    audio::-webkit-media-controls-current-time-display,
+    audio::-webkit-media-controls-time-remaining-display,
+    audio::-webkit-media-controls-volume-slider {
+      filter: invert(1) brightness(0.9);
     }
 
     #recordBtn.recording {
@@ -76,11 +114,15 @@
 <body>
   <h1>🎧 Audio Studio</h1>
   <div class="controls">
+    <!-- Custom styled upload button -->
+    <label class="upload-btn" for="audioFile">📁 <span>Upload Audio</span></label>
     <input type="file" id="audioFile" accept="audio/*" />
     <br>
+
     <label for="micSelect">🎙️ Microphone:</label>
     <select id="micSelect"></select>
     <br>
+
     <button id="recordBtn">🎙️ Record</button>
     <button id="stopBtn" disabled>⏹️ Stop</button>
 
@@ -112,12 +154,10 @@
     let audioCtx, buffer, mediaRecorder, recordedChunks = [];
     let currentStream = null;
 
-    // Initialize AudioContext
     function initAudioCtx() {
       if (!audioCtx) audioCtx = new AudioContext();
     }
 
-    // Load available microphones
     async function loadMicrophones() {
       const devices = await navigator.mediaDevices.enumerateDevices();
       const mics = devices.filter(device => device.kind === 'audioinput');
@@ -130,12 +170,10 @@
       });
     }
 
-    // Request permission and load devices
     navigator.mediaDevices.getUserMedia({ audio: true })
       .then(loadMicrophones)
       .catch(err => console.error('Mic access error:', err));
 
-    // Handle file upload
     fileInput.addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
@@ -144,9 +182,9 @@
       buffer = await audioCtx.decodeAudioData(arrayBuffer);
       playBtn.disabled = false;
       exportBtn.disabled = false;
+      player.src = URL.createObjectURL(file);
     });
 
-    // Handle recording
     recordBtn.addEventListener('click', async () => {
       initAudioCtx();
       const deviceId = micSelect.value;
@@ -184,7 +222,6 @@
       stopBtn.disabled = true;
     });
 
-    // Play the processed audio
     playBtn.addEventListener('click', () => {
       if (!buffer) return;
       const reverbAmount = parseFloat(reverbControl.value);
@@ -212,7 +249,6 @@
       source.start();
     });
 
-    // Export recorded audio
     exportBtn.addEventListener('click', async () => {
       const response = await fetch(player.src);
       const blob = await response.blob();
