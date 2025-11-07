@@ -70,23 +70,33 @@ audio {
   overflow: hidden;
 }
 
-/* Background of the entire control bar */
+/* 🎧 Custom-styled slim audio player */
+audio {
+  width: 100%;
+  margin-top: 20px;
+  border-radius: 10px;
+  height: 32px; /* back to a compact height */
+  overflow: hidden;
+}
+
+/* Dark grey background for control bar */
 audio::-webkit-media-controls-panel {
-  background-color: #222 !important; /* dark grey */
+  background-color: #222 !important;
   border-radius: 10px;
 }
 
-/* Play/Pause/Volume/Time text in blue */
+/* Make all icons, text, and progress bar the same blue tone */
 audio::-webkit-media-controls-play-button,
 audio::-webkit-media-controls-current-time-display,
 audio::-webkit-media-controls-time-remaining-display,
 audio::-webkit-media-controls-timeline,
 audio::-webkit-media-controls-mute-button,
-audio::-webkit-media-controls-volume-slider {
+audio::-webkit-media-controls-volume-slider,
+audio::-webkit-media-controls-overflow-button {
   filter: invert(41%) sepia(82%) saturate(1298%) hue-rotate(195deg) brightness(100%) contrast(101%);
 }
 
-/* Make the timeline and icons match your blue theme */
+/* Match timeline and volume track color with blue */
 audio::-webkit-media-controls-timeline {
   background-color: #1e3c72;
 }
