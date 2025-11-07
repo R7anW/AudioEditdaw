@@ -48,7 +48,6 @@
 
     select { min-width: 200px; }
     input[type="file"] { display: none; }
-    .upload-btn { background: #1e3c72; }
 
     input[type="range"] {
       width: 180px;
@@ -63,16 +62,21 @@
       margin: 6px 0;
     }
 
+    /* Modern custom player styling */
     audio {
-      margin-top: 20px;
       width: 100%;
-      border-radius: 10px;
-      background: rgba(0, 0, 0, 0.4);
+      margin-top: 20px;
+      filter: hue-rotate(200deg) saturate(1.5);
     }
-
     audio::-webkit-media-controls-panel {
-      background-color: rgba(10, 20, 30, 0.9);
-      border-radius: 10px;
+      background-color: rgba(10, 30, 60, 0.8);
+    }
+    audio::-webkit-media-controls-play-button,
+    audio::-webkit-media-controls-timeline,
+    audio::-webkit-media-controls-current-time-display,
+    audio::-webkit-media-controls-time-remaining-display {
+      color: #00aaff !important;
+      filter: hue-rotate(190deg) brightness(1.2);
     }
 
     #recordBtn.recording {
@@ -132,6 +136,7 @@
 
     <button id="playBtn" disabled>▶️ Play</button>
     <button id="exportBtn" disabled>💾 Export WAV</button>
+    <button id="exportMp4Btn" disabled>🎬 Export MP4</button>
 
     <canvas id="wave"></canvas>
     <div class="meter"><div class="meter-fill" id="meterFill"></div></div>
@@ -144,6 +149,7 @@
     const stopBtn = document.getElementById('stopBtn');
     const playBtn = document.getElementById('playBtn');
     const exportBtn = document.getElementById('exportBtn');
+    const exportMp4Btn = document.getElementById('exportMp4Btn');
     const micSelect = document.getElementById('micSelect');
     const reverbControl = document.getElementById('reverb');
     const gainControl = document.getElementById('gain');
@@ -153,7 +159,7 @@
     const meterFill = document.getElementById('meterFill');
 
     let audioCtx, buffer, mediaRecorder, recordedChunks = [];
-    let currentStream = null, analyser, source, animationId;
+    let currentStream = null, analyser, source, animationId, liveAnalyser;
 
     function initAudioCtx() {
       if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -183,8 +189,20 @@
       buffer = await audioCtx.decodeAudioData(arrayBuffer);
       playBtn.disabled = false;
       exportBtn.disabled = false;
+      exportMp4Btn.disabled = false;
       player.src = URL.createObjectURL(file);
+      setupLiveVisualizer(player);
     });
+
+    function setupLiveVisualizer(audioElement) {
+      initAudioCtx();
+      const src = audioCtx.createMediaElementSource(audioElement);
+      liveAnalyser = audioCtx.createAnalyser();
+      liveAnalyser.fftSize = 2048;
+      src.connect(liveAnalyser);
+      liveAnalyser.connect(audioCtx.destination);
+      visualizeWaveform(liveAnalyser);
+    }
 
     recordBtn.addEventListener('click', async () => {
       initAudioCtx();
@@ -208,6 +226,7 @@
         const blob = new Blob(recordedChunks, { type: 'audio/webm' });
         player.src = URL.createObjectURL(blob);
         exportBtn.disabled = false;
+        exportMp4Btn.disabled = false;
         cancelAnimationFrame(animationId);
         meterFill.style.width = '0%';
       };
@@ -231,7 +250,7 @@
       if (!buffer) return;
       initAudioCtx();
 
-      if (source) source.stop(); // prevent overlapping playback
+      if (source) source.stop();
       source = audioCtx.createBufferSource();
       source.buffer = buffer;
       source.playbackRate.value = parseFloat(speedControl.value);
@@ -273,10 +292,10 @@
         ctx.fillRect(0, 0, waveCanvas.width, waveCanvas.height);
 
         ctx.lineWidth = 2;
-        ctx.strokeStyle = '#00ffb3';
+        ctx.strokeStyle = '#00aaff';
         ctx.beginPath();
 
-        const sliceWidth = waveCanvas.width * 1.0 / bufferLength;
+        const sliceWidth = waveCanvas.width / bufferLength;
         let x = 0;
         let sum = 0;
 
@@ -289,7 +308,6 @@
         }
 
         ctx.stroke();
-
         const level = Math.min(100, (sum / bufferLength) * 200);
         meterFill.style.width = level + '%';
       }
@@ -304,6 +322,34 @@
       a.href = URL.createObjectURL(blob);
       a.download = 'edited_audio.wav';
       a.click();
+    });
+
+    // 🎬 MP4 Export with waveform animation
+    exportMp4Btn.addEventListener('click', async () => {
+      const stream = waveCanvas.captureStream(30);
+      const audioStream = await fetch(player.src).then(r => r.blob()).then(b => b.arrayBuffer());
+      const audioBuffer = await audioCtx.decodeAudioData(audioStream);
+      const dest = audioCtx.createMediaStreamDestination();
+      const src = audioCtx.createBufferSource();
+      src.buffer = audioBuffer;
+      src.connect(dest);
+      src.start();
+
+      const combined = new MediaStream([...stream.getTracks(), ...dest.stream.getTracks()]);
+      const recorder = new MediaRecorder(combined, { mimeType: 'video/webm; codecs=vp9' });
+      const chunks = [];
+
+      recorder.ondataavailable = e => chunks.push(e.data);
+      recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'video/webm' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'waveform.mp4';
+        a.click();
+      };
+
+      recorder.start();
+      src.onended = () => recorder.stop();
     });
   </script>
 </body>
