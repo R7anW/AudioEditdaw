@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Audio Studio Pro</title>
   <style>
     body {
@@ -48,6 +48,7 @@
 
     select { min-width: 200px; }
     input[type="file"] { display: none; }
+    .upload-btn { background: #1e3c72; }
 
     input[type="range"] {
       width: 180px;
@@ -62,69 +63,9 @@
       margin: 6px 0;
     }
 
-/* 🎧 Custom-styled compact audio player */
-audio {
-  width: 100%;
-  margin-top: 20px;
-  border-radius: 10px;
-  overflow: hidden;
-}
-
-/* Dark grey background for player panel */
-audio::-webkit-media-controls-panel {
-  background-color: #222 !important;
-  border-radius: 10px;
-}
-
-/* Blue icons, text, and menu button */
-audio::-webkit-media-controls-play-button,
-audio::-webkit-media-controls-current-time-display,
-audio::-webkit-media-controls-time-remaining-display,
-audio::-webkit-media-controls-mute-button,
-audio::-webkit-media-controls-volume-slider,
-audio::-webkit-media-controls-overflow-button {
-  filter: invert(41%) sepia(82%) saturate(1298%) hue-rotate(195deg) brightness(100%) contrast(101%);
-}
-
-/* 🎚️ Make the scrub (progress) bar slim and blue */
-audio::-webkit-media-controls-timeline {
-  background-color: transparent; /* no thick background */
-  height: 4px;                   /* thin progress bar */
-  border-radius: 2px;
-  filter: invert(41%) sepia(82%) saturate(1298%) hue-rotate(195deg) brightness(100%) contrast(101%);
-}
-
-/* Make all icons, text, and progress bar the same blue tone */
-audio::-webkit-media-controls-play-button,
-audio::-webkit-media-controls-current-time-display,
-audio::-webkit-media-controls-time-remaining-display,
-audio::-webkit-media-controls-timeline,
-audio::-webkit-media-controls-mute-button,
-audio::-webkit-media-controls-volume-slider,
-audio::-webkit-media-controls-overflow-button {
-  filter: invert(41%) sepia(82%) saturate(1298%) hue-rotate(195deg) brightness(100%) contrast(101%);
-}
-
-/* Match timeline and volume track color with blue */
-audio::-webkit-media-controls-timeline {
-  background-color: #1e3c72;
-}
-
-audio::-webkit-media-controls-volume-slider {
-  background-color: #1e3c72;
-}
-
-    }
-
-    #recordBtn.recording {
-      background: #e63946 !important;
-      animation: pulse 1.2s infinite;
-    }
-
-    @keyframes pulse {
-      0% { box-shadow: 0 0 0 0 rgba(230,57,70,0.6); }
-      70% { box-shadow: 0 0 0 10px rgba(230,57,70,0); }
-      100% { box-shadow: 0 0 0 0 rgba(230,57,70,0); }
+    /* Hide native audio controls */
+    audio {
+      display: none;
     }
 
     canvas#wave {
@@ -151,6 +92,66 @@ audio::-webkit-media-controls-volume-slider {
       width: 0%;
       transition: width 0.1s linear;
     }
+
+    /* Custom audio player container */
+    #custom-controls {
+      width: 100%;
+      max-width: 650px;
+      margin-top: 20px;
+      background: #222;
+      border-radius: 10px;
+      padding: 10px 15px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: #1e3c72;
+      font-family: 'Inter', sans-serif;
+      user-select: none;
+    }
+
+    /* Buttons styling */
+    #custom-controls button {
+      background: none;
+      border: none;
+      color: #1e3c72;
+      font-size: 18px;
+      cursor: pointer;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.2s ease;
+    }
+    #custom-controls button:hover {
+      color: #2a5298;
+    }
+
+    /* Time display */
+    #time {
+      min-width: 70px;
+      font-size: 14px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Progress bar container */
+    #progressContainer {
+      flex-grow: 1;
+      height: 6px;
+      background: #111;
+      border-radius: 3px;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Progress bar fill */
+    #progressBar {
+      height: 6px;
+      width: 0%;
+      background: #1e3c72;
+      border-radius: 3px;
+      transition: width 0.1s linear;
+    }
   </style>
 </head>
 <body>
@@ -173,11 +174,22 @@ audio::-webkit-media-controls-volume-slider {
 
     <button id="playBtn" disabled>▶️ Play</button>
     <button id="exportBtn" disabled>💾 Export WAV</button>
-    <button id="exportMp4Btn" disabled>🎬 Export MP4</button>
 
     <canvas id="wave"></canvas>
     <div class="meter"><div class="meter-fill" id="meterFill"></div></div>
-    <audio id="player" controls></audio>
+
+    <!-- Hidden native audio element -->
+    <audio id="player" preload="metadata"></audio>
+
+    <!-- Custom audio player -->
+    <div id="custom-controls">
+      <button id="playPause">▶️</button>
+      <div id="time">0:00 / 0:00</div>
+      <div id="progressContainer">
+        <div id="progressBar"></div>
+      </div>
+      <button id="muteBtn">🔊</button>
+    </div>
   </div>
 
   <script>
@@ -186,7 +198,6 @@ audio::-webkit-media-controls-volume-slider {
     const stopBtn = document.getElementById('stopBtn');
     const playBtn = document.getElementById('playBtn');
     const exportBtn = document.getElementById('exportBtn');
-    const exportMp4Btn = document.getElementById('exportMp4Btn');
     const micSelect = document.getElementById('micSelect');
     const reverbControl = document.getElementById('reverb');
     const gainControl = document.getElementById('gain');
@@ -195,8 +206,15 @@ audio::-webkit-media-controls-volume-slider {
     const waveCanvas = document.getElementById('wave');
     const meterFill = document.getElementById('meterFill');
 
+    // Custom player controls
+    const playPause = document.getElementById('playPause');
+    const timeDisplay = document.getElementById('time');
+    const progressContainer = document.getElementById('progressContainer');
+    const progressBar = document.getElementById('progressBar');
+    const muteBtn = document.getElementById('muteBtn');
+
     let audioCtx, buffer, mediaRecorder, recordedChunks = [];
-    let currentStream = null, analyser, source, animationId, liveAnalyser;
+    let currentStream = null, analyser, source, animationId;
 
     function initAudioCtx() {
       if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -226,20 +244,10 @@ audio::-webkit-media-controls-volume-slider {
       buffer = await audioCtx.decodeAudioData(arrayBuffer);
       playBtn.disabled = false;
       exportBtn.disabled = false;
-      exportMp4Btn.disabled = false;
-      player.src = URL.createObjectURL(file);
-      setupLiveVisualizer(player);
-    });
 
-    function setupLiveVisualizer(audioElement) {
-      initAudioCtx();
-      const src = audioCtx.createMediaElementSource(audioElement);
-      liveAnalyser = audioCtx.createAnalyser();
-      liveAnalyser.fftSize = 2048;
-      src.connect(liveAnalyser);
-      liveAnalyser.connect(audioCtx.destination);
-      visualizeWaveform(liveAnalyser);
-    }
+      // Load file to audio element for playback and custom player
+      player.src = URL.createObjectURL(file);
+    });
 
     recordBtn.addEventListener('click', async () => {
       initAudioCtx();
@@ -263,7 +271,6 @@ audio::-webkit-media-controls-volume-slider {
         const blob = new Blob(recordedChunks, { type: 'audio/webm' });
         player.src = URL.createObjectURL(blob);
         exportBtn.disabled = false;
-        exportMp4Btn.disabled = false;
         cancelAnimationFrame(animationId);
         meterFill.style.width = '0%';
       };
@@ -287,7 +294,7 @@ audio::-webkit-media-controls-volume-slider {
       if (!buffer) return;
       initAudioCtx();
 
-      if (source) source.stop();
+      if (source) source.stop(); // prevent overlapping playback
       source = audioCtx.createBufferSource();
       source.buffer = buffer;
       source.playbackRate.value = parseFloat(speedControl.value);
@@ -329,10 +336,10 @@ audio::-webkit-media-controls-volume-slider {
         ctx.fillRect(0, 0, waveCanvas.width, waveCanvas.height);
 
         ctx.lineWidth = 2;
-        ctx.strokeStyle = '#00aaff';
+        ctx.strokeStyle = '#00ffb3';
         ctx.beginPath();
 
-        const sliceWidth = waveCanvas.width / bufferLength;
+        const sliceWidth = waveCanvas.width * 1.0 / bufferLength;
         let x = 0;
         let sum = 0;
 
@@ -345,6 +352,7 @@ audio::-webkit-media-controls-volume-slider {
         }
 
         ctx.stroke();
+
         const level = Math.min(100, (sum / bufferLength) * 200);
         meterFill.style.width = level + '%';
       }
@@ -361,32 +369,50 @@ audio::-webkit-media-controls-volume-slider {
       a.click();
     });
 
-    // 🎬 MP4 Export with waveform animation
-    exportMp4Btn.addEventListener('click', async () => {
-      const stream = waveCanvas.captureStream(30);
-      const audioStream = await fetch(player.src).then(r => r.blob()).then(b => b.arrayBuffer());
-      const audioBuffer = await audioCtx.decodeAudioData(audioStream);
-      const dest = audioCtx.createMediaStreamDestination();
-      const src = audioCtx.createBufferSource();
-      src.buffer = audioBuffer;
-      src.connect(dest);
-      src.start();
+    // ========== Custom audio player logic ===========
 
-      const combined = new MediaStream([...stream.getTracks(), ...dest.stream.getTracks()]);
-      const recorder = new MediaRecorder(combined, { mimeType: 'video/webm; codecs=vp9' });
-      const chunks = [];
+    // Play/Pause toggle
+    playPause.addEventListener('click', () => {
+      if (player.paused) player.play();
+      else player.pause();
+    });
 
-      recorder.ondataavailable = e => chunks.push(e.data);
-      recorder.onstop = () => {
-        const blob = new Blob(chunks, { type: 'video/webm' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = 'waveform.mp4';
-        a.click();
-      };
+    player.addEventListener('play', () => {
+      playPause.textContent = '⏸️';
+    });
 
-      recorder.start();
-      src.onended = () => recorder.stop();
+    player.addEventListener('pause', () => {
+      playPause.textContent = '▶️';
+    });
+
+    // Update time and progress bar
+    player.addEventListener('timeupdate', () => {
+      const current = player.currentTime;
+      const duration = player.duration || 0;
+      const percent = (current / duration) * 100;
+      progressBar.style.width = percent + '%';
+
+      function formatTime(t) {
+        const m = Math.floor(t / 60);
+        const s = Math.floor(t % 60);
+        return m + ':' + (s < 10 ? '0' + s : s);
+      }
+      timeDisplay.textContent = `${formatTime(current)} / ${formatTime(duration)}`;
+    });
+
+    // Scrub on progress bar click
+    progressContainer.addEventListener('click', e => {
+      const rect = progressContainer.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const width = rect.width;
+      const newTime = (clickX / width) * player.duration;
+      player.currentTime = newTime;
+    });
+
+    // Mute/unmute toggle
+    muteBtn.addEventListener('click', () => {
+      player.muted = !player.muted;
+      muteBtn.textContent = player.muted ? '🔈' : '🔊';
     });
   </script>
 </body>
