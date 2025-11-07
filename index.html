@@ -32,6 +32,7 @@
       max-width: 650px;
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
       box-sizing: border-box;
+      text-align: left;
     }
 
     button, select, .upload-btn {
@@ -110,12 +111,21 @@
       transition: width 0.1s linear;
     }
 
-    /* Custom audio player container */
-    #custom-controls {
+    /* Audio visualizer canvas */
+    #audioVisualizer {
+      background: #111;
+      border-radius: 10px;
+      margin-top: 20px;
       width: 100%;
-      max-width: 650px;
-      margin-top: 25px;
-      background: #222;
+      height: 70px;
+      display: block;
+      box-sizing: border-box;
+    }
+
+    /* Custom audio player container - now inside .controls */
+    #custom-controls {
+      margin-top: 30px;
+      background: rgba(255 255 255 / 0.15); /* lighter background */
       border-radius: 10px;
       padding: 10px 15px;
       display: flex;
@@ -125,6 +135,8 @@
       font-family: 'Inter', sans-serif;
       user-select: none;
       box-sizing: border-box;
+      width: 100%;
+      max-width: 100%;
     }
 
     /* Buttons styling */
@@ -156,7 +168,7 @@
     #progressContainer {
       flex-grow: 1;
       height: 8px;
-      background: #111;
+      background: #e1e9f3; /* much lighter for better contrast */
       border-radius: 4px;
       cursor: pointer;
       position: relative;
@@ -177,17 +189,6 @@
       width: 100px;
       cursor: pointer;
       accent-color: #1e3c72;
-    }
-
-    /* Audio visualizer canvas */
-    #audioVisualizer {
-      background: #111;
-      border-radius: 10px;
-      margin-top: 20px;
-      width: 100%;
-      height: 70px;
-      display: block;
-      box-sizing: border-box;
     }
 
     /* Responsive tweaks */
@@ -239,19 +240,23 @@
 
     <!-- Audio waveform visualizer canvas -->
     <canvas id="audioVisualizer"></canvas>
-  </div>
 
-  <!-- Custom audio player -->
-  <div id="custom-controls">
-    <button id="playPause">▶️</button>
-    <div id="time">0:00 / 0:00</div>
-    <div id="progressContainer">
-      <div id="progressBar"></div>
+    <!-- Custom audio player placed inside controls -->
+    <div id="custom-controls">
+      <button id="playPause">▶️</button>
+      <div id="time">0:00 / 0:00</div>
+      <div id="progressContainer">
+        <div id="progressBar"></div>
+      </div>
+      <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="1" />
     </div>
-    <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="1" />
   </div>
 
   <script>
+    // JavaScript remains the same from previous code (for brevity not repeating here)
+    // Including initialization, recording, playback, visualizer, resizing, etc.
+
+    // ... [JavaScript code from previous snippet] ...
     const fileInput = document.getElementById('audioFile');
     const recordBtn = document.getElementById('recordBtn');
     const stopBtn = document.getElementById('stopBtn');
@@ -265,21 +270,18 @@
     const waveCanvas = document.getElementById('wave');
     const meterFill = document.getElementById('meterFill');
 
-    // Custom player controls
     const playPause = document.getElementById('playPause');
     const timeDisplay = document.getElementById('time');
     const progressContainer = document.getElementById('progressContainer');
     const progressBar = document.getElementById('progressBar');
     const volumeSlider = document.getElementById('volumeSlider');
 
-    // Visualizer canvas & context
     const audioVisualizer = document.getElementById('audioVisualizer');
     const visualCtx = audioVisualizer.getContext('2d');
 
     let audioCtx, buffer, mediaRecorder, recordedChunks = [];
     let currentStream = null, analyser, source, animationId;
 
-    // Initialize AudioContext on user interaction (to avoid autoplay block)
     function initAudioCtx() {
       if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
@@ -300,12 +302,10 @@
       }
     }
 
-    // Load microphones on page load
     navigator.mediaDevices.getUserMedia({ audio: true })
       .then(loadMicrophones)
       .catch(console.error);
 
-    // Load audio file
     fileInput.addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
@@ -314,29 +314,22 @@
       buffer = await audioCtx.decodeAudioData(arrayBuffer);
       playBtn.disabled = false;
       exportBtn.disabled = false;
-
-      // Load file to audio element for playback and custom player
       player.src = URL.createObjectURL(file);
     });
 
-    // Record button clicked
     recordBtn.addEventListener('click', async () => {
       initAudioCtx();
       const deviceId = micSelect.value;
       const constraints = { audio: { deviceId: deviceId ? { exact: deviceId } : undefined } };
-
       if (currentStream) currentStream.getTracks().forEach(track => track.stop());
       currentStream = await navigator.mediaDevices.getUserMedia(constraints);
       mediaRecorder = new MediaRecorder(currentStream);
       recordedChunks = [];
-
       const micSource = audioCtx.createMediaStreamSource(currentStream);
       analyser = audioCtx.createAnalyser();
       analyser.fftSize = 2048;
       micSource.connect(analyser);
-
       visualizeWaveform(analyser);
-
       mediaRecorder.ondataavailable = e => recordedChunks.push(e.data);
       mediaRecorder.onstop = () => {
         const blob = new Blob(recordedChunks, { type: 'audio/webm' });
@@ -345,7 +338,6 @@
         cancelAnimationFrame(animationId);
         meterFill.style.width = '0%';
       };
-
       mediaRecorder.start();
       recordBtn.classList.add('recording');
       recordBtn.textContent = '🔴 Recording...';
@@ -353,7 +345,6 @@
       stopBtn.disabled = false;
     });
 
-    // Stop recording
     stopBtn.addEventListener('click', () => {
       if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
       recordBtn.classList.remove('recording');
@@ -362,20 +353,15 @@
       stopBtn.disabled = true;
     });
 
-    // Play button clicked: playback buffer with effects
     playBtn.addEventListener('click', () => {
       if (!buffer) return;
       initAudioCtx();
-
-      if (source) source.stop(); // stop overlapping playback
-
+      if (source) source.stop();
       source = audioCtx.createBufferSource();
       source.buffer = buffer;
       source.playbackRate.value = parseFloat(speedControl.value);
-
       const gainNode = audioCtx.createGain();
       gainNode.gain.value = parseFloat(gainControl.value);
-
       const convolver = audioCtx.createConvolver();
       const reverbAmount = parseFloat(reverbControl.value);
       const impulse = audioCtx.createBuffer(2, audioCtx.sampleRate * 3, audioCtx.sampleRate);
@@ -384,20 +370,16 @@
         impulse.getChannelData(1)[i] = (Math.random() * 2 - 1) * reverbAmount;
       }
       convolver.buffer = impulse;
-
       analyser = audioCtx.createAnalyser();
       analyser.fftSize = 2048;
-
       source.connect(convolver);
       convolver.connect(gainNode);
       gainNode.connect(analyser);
       analyser.connect(audioCtx.destination);
-
       visualizeWaveform(analyser);
       source.start();
     });
 
-    // Visualize waveform (time-domain data)
     function visualizeWaveform(analyser) {
       const ctx = waveCanvas.getContext('2d');
       const bufferLength = analyser.fftSize;
@@ -419,7 +401,7 @@
         let sum = 0;
 
         for (let i = 0; i < bufferLength; i++) {
-          const v = dataArray[i] / 128.0; // normalized [0, 2]
+          const v = dataArray[i] / 128.0;
           const y = v * waveCanvas.height / 2;
           if (i === 0) ctx.moveTo(x, y);
           else ctx.lineTo(x, y);
@@ -436,7 +418,6 @@
       draw();
     }
 
-    // Export WAV (downloads current audio element source)
     exportBtn.addEventListener('click', async () => {
       const response = await fetch(player.src);
       const blob = await response.blob();
@@ -446,9 +427,6 @@
       a.click();
     });
 
-    // ======= Custom audio player logic =======
-
-    // Play/pause toggle
     playPause.addEventListener('click', () => {
       if (player.paused) player.play();
       else player.pause();
@@ -462,7 +440,6 @@
       playPause.textContent = '▶️';
     });
 
-    // Update time and progress bar
     player.addEventListener('timeupdate', () => {
       const current = player.currentTime;
       const duration = player.duration || 0;
@@ -477,7 +454,6 @@
       timeDisplay.textContent = `${formatTime(current)} / ${formatTime(duration)}`;
     });
 
-    // Scrub on progress bar click
     progressContainer.addEventListener('click', e => {
       const rect = progressContainer.getBoundingClientRect();
       const clickX = e.clientX - rect.left;
@@ -486,23 +462,18 @@
       player.currentTime = newTime;
     });
 
-    // Volume slider control
     volumeSlider.addEventListener('input', () => {
       player.volume = volumeSlider.value;
       if (player.volume === 0) {
-        volumeSlider.style.accentColor = '#ff4d4d'; // red tint when muted
+        volumeSlider.style.accentColor = '#ff4d4d';
       } else {
-        volumeSlider.style.accentColor = '#1e3c72'; // normal blue tint
+        volumeSlider.style.accentColor = '#1e3c72';
       }
     });
 
-    // ======== Audio Waveform Visualizer for custom player ========
-
-    // Setup audio context and analyser for visualizer linked to player element
     function setupVisualizer() {
       if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       if (!source) source = audioCtx.createMediaElementSource(player);
-
       if (!analyser) {
         analyser = audioCtx.createAnalyser();
         analyser.fftSize = 2048;
@@ -512,26 +483,20 @@
       visualizeAudioWaveform();
     }
 
-    // Visualize waveform (time domain) on #audioVisualizer canvas
     function visualizeAudioWaveform() {
       const bufferLength = analyser.fftSize;
       const dataArray = new Uint8Array(bufferLength);
 
       function draw() {
         requestAnimationFrame(draw);
-
         analyser.getByteTimeDomainData(dataArray);
-
         visualCtx.fillStyle = '#111';
         visualCtx.fillRect(0, 0, audioVisualizer.width, audioVisualizer.height);
-
         visualCtx.lineWidth = 2;
         visualCtx.strokeStyle = '#1e3c72';
         visualCtx.beginPath();
-
         const sliceWidth = audioVisualizer.width / bufferLength;
         let x = 0;
-
         for (let i = 0; i < bufferLength; i++) {
           const v = dataArray[i] / 128.0;
           const y = v * audioVisualizer.height / 2;
@@ -539,7 +504,6 @@
           else visualCtx.lineTo(x, y);
           x += sliceWidth;
         }
-
         visualCtx.lineTo(audioVisualizer.width, audioVisualizer.height / 2);
         visualCtx.stroke();
       }
@@ -547,30 +511,32 @@
       draw();
     }
 
-    // Resize canvases to fit container width for high-DPI screens
+    // Resize canvases on window resize for sharpness and responsiveness
     function resizeCanvases() {
-      // wave canvas
-      waveCanvas.width = waveCanvas.clientWidth * devicePixelRatio;
-      waveCanvas.height = waveCanvas.clientHeight * devicePixelRatio;
-      waveCanvas.getContext('2d').scale(devicePixelRatio, devicePixelRatio);
+      const dpr = window.devicePixelRatio || 1;
 
-      // audioVisualizer canvas
-      audioVisualizer.width = audioVisualizer.clientWidth * devicePixelRatio;
-      audioVisualizer.height = audioVisualizer.clientHeight * devicePixelRatio;
-      visualCtx.scale(devicePixelRatio, devicePixelRatio);
+      waveCanvas.width = waveCanvas.clientWidth * dpr;
+      waveCanvas.height = waveCanvas.clientHeight * dpr;
+      waveCanvas.getContext('2d').setTransform(1, 0, 0, 1, 0, 0);
+      waveCanvas.getContext('2d').scale(dpr, dpr);
+
+      audioVisualizer.width = audioVisualizer.clientWidth * dpr;
+      audioVisualizer.height = audioVisualizer.clientHeight * dpr;
+      visualCtx.setTransform(1, 0, 0, 1, 0, 0);
+      visualCtx.scale(dpr, dpr);
     }
 
-    window.addEventListener('resize', () => {
+    window.addEventListener('resize', resizeCanvases);
+
+    window.onload = () => {
       resizeCanvases();
-    });
+    };
 
-    // Initial resize on page load
-    resizeCanvases();
-
-    // Setup visualizer for audio element when metadata loaded
     player.addEventListener('loadedmetadata', () => {
       setupVisualizer();
     });
+
+    loadMicrophones();
   </script>
 </body>
 </html>
