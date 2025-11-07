@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Audio Studio</title>
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      text-align: center;
+    }
+
+    h1 {
+      margin-bottom: 0.5em;
+    }
+
+    .controls {
+      background: rgba(255, 255, 255, 0.08);
+      padding: 20px;
+      border-radius: 10px;
+      width: 90%;
+      max-width: 600px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    }
+
+    input[type="file"],
+    button,
+    select {
+      background: #1e3c72;
+      border: none;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 1em;
+      margin: 10px;
+      transition: background 0.2s;
+    }
+
+    button:hover,
+    select:hover {
+      background: #2a5298;
+    }
+
+    input[type="range"] {
+      width: 80%;
+      margin: 10px 0;
+    }
+
+    audio {
+      margin-top: 20px;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎧 Audio Studio</h1>
+  <div class="controls">
+    <input type="file" id="audioFile" accept="audio/*" />
+    <button id="recordBtn">🎙️ Record</button>
+    <button id="stopBtn" disabled>⏹️ Stop</button>
+
+    <div>
+      <h3>Effects</h3>
+      <label>Reverb: <input type="range" id="reverb" min="0" max="1" step="0.01" value="0"></label><br>
+      <label>Gain: <input type="range" id="gain" min="0" max="2" step="0.01" value="1"></label><br>
+      <label>Playback Speed: <input type="range" id="speed" min="0.5" max="2" step="0.01" value="1"></label>
+    </div>
+
+    <button id="playBtn" disabled>▶️ Play</button>
+    <button id="exportBtn" disabled>💾 Export WAV</button>
+
+    <audio id="player" controls></audio>
+  </div>
+
+  <script>
+    const fileInput = document.getElementById('audioFile');
+    const recordBtn = document.getElementById('recordBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const playBtn = document.getElementById('playBtn');
+    const exportBtn = document.getElementById('exportBtn');
+    const reverbControl = document.getElementById('reverb');
+    const gainControl = document.getElementById('gain');
+    const speedControl = document.getElementById('speed');
+    const player = document.getElementById('player');
+
+    let audioCtx, sourceBuffer, recordedChunks = [];
+    let mediaRecorder, source, gainNode, convolver, buffer, audioData;
+
+    function initAudioCtx() {
+      if (!audioCtx) audioCtx = new AudioContext();
+    }
+
+    fileInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      initAudioCtx();
+      const arrayBuffer = await file.arrayBuffer();
+      buffer = await audioCtx.decodeAudioData(arrayBuffer);
+      audioData = file;
+      playBtn.disabled = false;
+      exportBtn.disabled = false;
+    });
+
+    recordBtn.addEventListener('click', async () => {
+      initAudioCtx();
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+      recordedChunks = [];
+
+      mediaRecorder.ondataavailable = (e) => recordedChunks.push(e.data);
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(recordedChunks, { type: 'audio/webm' });
+        player.src = URL.createObjectURL(blob);
+        exportBtn.disabled = false;
+      };
+
+      mediaRecorder.start();
+      recordBtn.disabled = true;
+      stopBtn.disabled = false;
+    });
+
+    stopBtn.addEventListener('click', () => {
+      mediaRecorder.stop();
+      recordBtn.disabled = false;
+      stopBtn.disabled = true;
+    });
+
+    playBtn.addEventListener('click', () => {
+      if (!buffer) return;
+      const reverbAmount = parseFloat(reverbControl.value);
+      const gainValue = parseFloat(gainControl.value);
+      const speedValue = parseFloat(speedControl.value);
+
+      source = audioCtx.createBufferSource();
+      source.buffer = buffer;
+      source.playbackRate.value = speedValue;
+
+      gainNode = audioCtx.createGain();
+      gainNode.gain.value = gainValue;
+
+      convolver = audioCtx.createConvolver();
+      // Simple fake reverb (using noise buffer)
+      const impulse = audioCtx.createBuffer(2, audioCtx.sampleRate * 3, audioCtx.sampleRate);
+      for (let i = 0; i < impulse.length; i++) {
+        impulse.getChannelData(0)[i] = (Math.random() * 2 - 1) * reverbAmount;
+        impulse.getChannelData(1)[i] = (Math.random() * 2 - 1) * reverbAmount;
+      }
+      convolver.buffer = impulse;
+
+      source.connect(convolver);
+      convolver.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      source.start(0);
+    });
+
+    exportBtn.addEventListener('click', async () => {
+      const response = await fetch(player.src);
+      const blob = await response.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'edited_audio.wav';
+      a.click();
+    });
+  </script>
+</body>
+</html>
