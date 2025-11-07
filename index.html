@@ -12,21 +12,26 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
+      justify-content: flex-start;
       min-height: 100vh;
       margin: 0;
+      padding: 20px 15px 40px;
       text-align: center;
     }
 
-    h1 { margin-bottom: 0.5em; }
+    h1 {
+      margin-bottom: 0.6em;
+      font-weight: 600;
+    }
 
     .controls {
       background: rgba(255, 255, 255, 0.08);
-      padding: 25px;
+      padding: 25px 25px 30px;
       border-radius: 15px;
-      width: 90%;
+      width: 100%;
       max-width: 650px;
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+      box-sizing: border-box;
     }
 
     button, select, .upload-btn {
@@ -37,8 +42,10 @@
       border-radius: 5px;
       cursor: pointer;
       font-size: 1em;
-      margin: 10px;
+      margin: 10px 8px 10px 0;
       transition: all 0.25s ease;
+      user-select: none;
+      vertical-align: middle;
     }
 
     button:hover, select:hover, .upload-btn:hover {
@@ -46,9 +53,17 @@
       transform: translateY(-2px);
     }
 
-    select { min-width: 200px; }
-    input[type="file"] { display: none; }
-    .upload-btn { background: #1e3c72; }
+    select {
+      min-width: 200px;
+    }
+    input[type="file"] {
+      display: none;
+    }
+    .upload-btn {
+      background: #1e3c72;
+      display: inline-block;
+      margin-bottom: 20px;
+    }
 
     input[type="range"] {
       width: 180px;
@@ -60,7 +75,9 @@
       display: inline-flex;
       align-items: center;
       gap: 10px;
-      margin: 6px 0;
+      margin: 8px 12px 8px 0;
+      font-size: 0.9em;
+      user-select: none;
     }
 
     /* Hide native audio controls */
@@ -97,7 +114,7 @@
     #custom-controls {
       width: 100%;
       max-width: 650px;
-      margin-top: 20px;
+      margin-top: 25px;
       background: #222;
       border-radius: 10px;
       padding: 10px 15px;
@@ -107,6 +124,7 @@
       color: #1e3c72;
       font-family: 'Inter', sans-serif;
       user-select: none;
+      box-sizing: border-box;
     }
 
     /* Buttons styling */
@@ -128,15 +146,16 @@
 
     /* Time display */
     #time {
-      min-width: 70px;
+      min-width: 75px;
       font-size: 14px;
       font-variant-numeric: tabular-nums;
+      user-select: none;
     }
 
     /* Progress bar container */
     #progressContainer {
       flex-grow: 1;
-      height: 8px; /* slightly bigger for easier clicking */
+      height: 8px;
       background: #111;
       border-radius: 4px;
       cursor: pointer;
@@ -164,10 +183,30 @@
     #audioVisualizer {
       background: #111;
       border-radius: 10px;
-      margin-top: 10px;
+      margin-top: 20px;
       width: 100%;
-      height: 60px;
+      height: 70px;
       display: block;
+      box-sizing: border-box;
+    }
+
+    /* Responsive tweaks */
+    @media (max-width: 480px) {
+      button, select, .upload-btn, label input[type="range"] {
+        width: 100%;
+        margin: 10px 0 10px 0;
+      }
+      label {
+        display: block;
+        margin-bottom: 10px;
+      }
+      #custom-controls {
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      #volumeSlider {
+        width: 100%;
+      }
     }
   </style>
 </head>
@@ -175,21 +214,21 @@
   <h1>🎧 Audio Studio Pro</h1>
   <div class="controls">
     <label class="upload-btn" for="audioFile">📁 Upload Audio</label>
-    <input type="file" id="audioFile" accept="audio/*" /><br>
+    <input type="file" id="audioFile" accept="audio/*" /><br />
 
     <label for="micSelect">🎙️ Microphone:</label>
-    <select id="micSelect"></select><br>
+    <select id="micSelect"></select><br />
 
     <button id="recordBtn">🎙️ Record</button>
     <button id="stopBtn" disabled>⏹️ Stop</button>
 
-    <div class="effect-row">
-      <label>Reverb: <input type="range" id="reverb" min="0" max="1" step="0.01" value="0"></label>
-      <label>Gain: <input type="range" id="gain" min="0" max="2" step="0.01" value="1"></label>
-      <label>Speed: <input type="range" id="speed" min="0.5" max="2" step="0.01" value="1"></label>
+    <div class="effect-row" style="margin-top: 10px; display: flex; flex-wrap: wrap; justify-content: center;">
+      <label>Reverb: <input type="range" id="reverb" min="0" max="1" step="0.01" value="0" /></label>
+      <label>Gain: <input type="range" id="gain" min="0" max="2" step="0.01" value="1" /></label>
+      <label>Speed: <input type="range" id="speed" min="0.5" max="2" step="0.01" value="1" /></label>
     </div>
 
-    <button id="playBtn" disabled>▶️ Play</button>
+    <button id="playBtn" disabled style="margin-top: 15px;">▶️ Play</button>
     <button id="exportBtn" disabled>💾 Export WAV</button>
 
     <canvas id="wave"></canvas>
@@ -198,18 +237,18 @@
     <!-- Hidden native audio element -->
     <audio id="player" preload="metadata"></audio>
 
-    <!-- Audio visualizer canvas -->
+    <!-- Audio waveform visualizer canvas -->
     <canvas id="audioVisualizer"></canvas>
+  </div>
 
-    <!-- Custom audio player -->
-    <div id="custom-controls">
-      <button id="playPause">▶️</button>
-      <div id="time">0:00 / 0:00</div>
-      <div id="progressContainer">
-        <div id="progressBar"></div>
-      </div>
-      <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="1" />
+  <!-- Custom audio player -->
+  <div id="custom-controls">
+    <button id="playPause">▶️</button>
+    <div id="time">0:00 / 0:00</div>
+    <div id="progressContainer">
+      <div id="progressBar"></div>
     </div>
+    <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="1" />
   </div>
 
   <script>
@@ -240,26 +279,33 @@
     let audioCtx, buffer, mediaRecorder, recordedChunks = [];
     let currentStream = null, analyser, source, animationId;
 
+    // Initialize AudioContext on user interaction (to avoid autoplay block)
     function initAudioCtx() {
       if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
 
     async function loadMicrophones() {
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const mics = devices.filter(d => d.kind === 'audioinput');
-      micSelect.innerHTML = '';
-      mics.forEach((mic, i) => {
-        const option = document.createElement('option');
-        option.value = mic.deviceId;
-        option.textContent = mic.label || `Microphone ${i + 1}`;
-        micSelect.appendChild(option);
-      });
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const mics = devices.filter(d => d.kind === 'audioinput');
+        micSelect.innerHTML = '';
+        mics.forEach((mic, i) => {
+          const option = document.createElement('option');
+          option.value = mic.deviceId;
+          option.textContent = mic.label || `Microphone ${i + 1}`;
+          micSelect.appendChild(option);
+        });
+      } catch (err) {
+        console.error('Could not enumerate devices:', err);
+      }
     }
 
+    // Load microphones on page load
     navigator.mediaDevices.getUserMedia({ audio: true })
       .then(loadMicrophones)
       .catch(console.error);
 
+    // Load audio file
     fileInput.addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
@@ -273,6 +319,7 @@
       player.src = URL.createObjectURL(file);
     });
 
+    // Record button clicked
     recordBtn.addEventListener('click', async () => {
       initAudioCtx();
       const deviceId = micSelect.value;
@@ -306,6 +353,7 @@
       stopBtn.disabled = false;
     });
 
+    // Stop recording
     stopBtn.addEventListener('click', () => {
       if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
       recordBtn.classList.remove('recording');
@@ -314,11 +362,13 @@
       stopBtn.disabled = true;
     });
 
+    // Play button clicked: playback buffer with effects
     playBtn.addEventListener('click', () => {
       if (!buffer) return;
       initAudioCtx();
 
-      if (source) source.stop(); // prevent overlapping playback
+      if (source) source.stop(); // stop overlapping playback
+
       source = audioCtx.createBufferSource();
       source.buffer = buffer;
       source.playbackRate.value = parseFloat(speedControl.value);
@@ -347,6 +397,7 @@
       source.start();
     });
 
+    // Visualize waveform (time-domain data)
     function visualizeWaveform(analyser) {
       const ctx = waveCanvas.getContext('2d');
       const bufferLength = analyser.fftSize;
@@ -363,14 +414,15 @@
         ctx.strokeStyle = '#00ffb3';
         ctx.beginPath();
 
-        const sliceWidth = waveCanvas.width * 1.0 / bufferLength;
+        const sliceWidth = waveCanvas.width / bufferLength;
         let x = 0;
         let sum = 0;
 
         for (let i = 0; i < bufferLength; i++) {
-          const v = dataArray[i] / 128.0;
+          const v = dataArray[i] / 128.0; // normalized [0, 2]
           const y = v * waveCanvas.height / 2;
-          ctx.lineTo(x, y);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
           x += sliceWidth;
           sum += Math.abs(v - 1);
         }
@@ -384,6 +436,7 @@
       draw();
     }
 
+    // Export WAV (downloads current audio element source)
     exportBtn.addEventListener('click', async () => {
       const response = await fetch(player.src);
       const blob = await response.blob();
@@ -393,9 +446,9 @@
       a.click();
     });
 
-    // ========== Custom audio player logic ===========
+    // ======= Custom audio player logic =======
 
-    // Play/Pause toggle
+    // Play/pause toggle
     playPause.addEventListener('click', () => {
       if (player.paused) player.play();
       else player.pause();
@@ -443,70 +496,80 @@
       }
     });
 
-    // ========== Audio Visualizer Logic ===========
+    // ======== Audio Waveform Visualizer for custom player ========
 
-    // Setup audio context and analyser for visualizer linked to the player element
+    // Setup audio context and analyser for visualizer linked to player element
     function setupVisualizer() {
       if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       if (!source) source = audioCtx.createMediaElementSource(player);
 
       if (!analyser) {
         analyser = audioCtx.createAnalyser();
-        analyser.fftSize = 256;
+        analyser.fftSize = 2048;
         source.connect(analyser);
         analyser.connect(audioCtx.destination);
       }
-      visualizeAudio();
+      visualizeAudioWaveform();
     }
 
-    function visualizeAudio() {
-      const bufferLength = analyser.frequencyBinCount;
+    // Visualize waveform (time domain) on #audioVisualizer canvas
+    function visualizeAudioWaveform() {
+      const bufferLength = analyser.fftSize;
       const dataArray = new Uint8Array(bufferLength);
 
       function draw() {
         requestAnimationFrame(draw);
 
-        analyser.getByteFrequencyData(dataArray);
+        analyser.getByteTimeDomainData(dataArray);
 
-        visualCtx.clearRect(0, 0, audioVisualizer.width, audioVisualizer.height);
         visualCtx.fillStyle = '#111';
         visualCtx.fillRect(0, 0, audioVisualizer.width, audioVisualizer.height);
 
-        const barWidth = (audioVisualizer.width / bufferLength) * 1.5;
+        visualCtx.lineWidth = 2;
+        visualCtx.strokeStyle = '#1e3c72';
+        visualCtx.beginPath();
+
+        const sliceWidth = audioVisualizer.width / bufferLength;
         let x = 0;
 
         for (let i = 0; i < bufferLength; i++) {
-          const barHeight = dataArray[i] / 2;
-          visualCtx.fillStyle = `rgb(${barHeight + 100}, 255, 180)`;
-          visualCtx.fillRect(x, audioVisualizer.height - barHeight, barWidth, barHeight);
-          x += barWidth + 1;
+          const v = dataArray[i] / 128.0;
+          const y = v * audioVisualizer.height / 2;
+          if (i === 0) visualCtx.moveTo(x, y);
+          else visualCtx.lineTo(x, y);
+          x += sliceWidth;
         }
+
+        visualCtx.lineTo(audioVisualizer.width, audioVisualizer.height / 2);
+        visualCtx.stroke();
       }
+
       draw();
     }
 
-    // Resize visualizer canvas on window resize
-    function resizeVisualizer() {
-      const dpr = window.devicePixelRatio || 1;
-      audioVisualizer.width = audioVisualizer.clientWidth * dpr;
-      audioVisualizer.height = audioVisualizer.clientHeight * dpr;
-      visualCtx.scale(dpr, dpr);
-    }
-    window.addEventListener('resize', resizeVisualizer);
-    resizeVisualizer();
+    // Resize canvases to fit container width for high-DPI screens
+    function resizeCanvases() {
+      // wave canvas
+      waveCanvas.width = waveCanvas.clientWidth * devicePixelRatio;
+      waveCanvas.height = waveCanvas.clientHeight * devicePixelRatio;
+      waveCanvas.getContext('2d').scale(devicePixelRatio, devicePixelRatio);
 
-    // Start visualizer once the audio metadata is loaded (duration is known)
-    player.addEventListener('loadedmetadata', () => {
-      if (!source) {
-        setupVisualizer();
-      }
+      // audioVisualizer canvas
+      audioVisualizer.width = audioVisualizer.clientWidth * devicePixelRatio;
+      audioVisualizer.height = audioVisualizer.clientHeight * devicePixelRatio;
+      visualCtx.scale(devicePixelRatio, devicePixelRatio);
+    }
+
+    window.addEventListener('resize', () => {
+      resizeCanvases();
     });
 
-    // Resume audio context on first user interaction to comply with browser autoplay policies
-    document.body.addEventListener('click', () => {
-      if (audioCtx && audioCtx.state === 'suspended') {
-        audioCtx.resume();
-      }
+    // Initial resize on page load
+    resizeCanvases();
+
+    // Setup visualizer for audio element when metadata loaded
+    player.addEventListener('loadedmetadata', () => {
+      setupVisualizer();
     });
   </script>
 </body>
