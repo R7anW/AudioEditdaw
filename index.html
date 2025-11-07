@@ -42,7 +42,7 @@
       cursor: pointer;
       font-size: 1em;
       margin: 10px;
-      transition: background 0.2s;
+      transition: all 0.2s;
     }
 
     button:hover,
@@ -59,12 +59,28 @@
       margin-top: 20px;
       width: 100%;
     }
+
+    #recordBtn.recording {
+      background: #e63946 !important;
+      color: #fff;
+      animation: pulse 1.2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(230, 57, 70, 0.7); }
+      70% { box-shadow: 0 0 0 10px rgba(230, 57, 70, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(230, 57, 70, 0); }
+    }
   </style>
 </head>
 <body>
   <h1>🎧 Audio Studio</h1>
   <div class="controls">
     <input type="file" id="audioFile" accept="audio/*" />
+    <br>
+    <label for="micSelect">🎙️ Microphone:</label>
+    <select id="micSelect"></select>
+    <br>
     <button id="recordBtn">🎙️ Record</button>
     <button id="stopBtn" disabled>⏹️ Stop</button>
 
@@ -87,33 +103,61 @@
     const stopBtn = document.getElementById('stopBtn');
     const playBtn = document.getElementById('playBtn');
     const exportBtn = document.getElementById('exportBtn');
+    const micSelect = document.getElementById('micSelect');
     const reverbControl = document.getElementById('reverb');
     const gainControl = document.getElementById('gain');
     const speedControl = document.getElementById('speed');
     const player = document.getElementById('player');
 
-    let audioCtx, sourceBuffer, recordedChunks = [];
-    let mediaRecorder, source, gainNode, convolver, buffer, audioData;
+    let audioCtx, buffer, mediaRecorder, recordedChunks = [];
+    let currentStream = null;
 
+    // Initialize AudioContext
     function initAudioCtx() {
       if (!audioCtx) audioCtx = new AudioContext();
     }
 
+    // Load available microphones
+    async function loadMicrophones() {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const mics = devices.filter(device => device.kind === 'audioinput');
+      micSelect.innerHTML = '';
+      mics.forEach((mic, i) => {
+        const option = document.createElement('option');
+        option.value = mic.deviceId;
+        option.textContent = mic.label || `Microphone ${i + 1}`;
+        micSelect.appendChild(option);
+      });
+    }
+
+    // Request permission and load devices
+    navigator.mediaDevices.getUserMedia({ audio: true })
+      .then(loadMicrophones)
+      .catch(err => console.error('Mic access error:', err));
+
+    // Handle file upload
     fileInput.addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
       initAudioCtx();
       const arrayBuffer = await file.arrayBuffer();
       buffer = await audioCtx.decodeAudioData(arrayBuffer);
-      audioData = file;
       playBtn.disabled = false;
       exportBtn.disabled = false;
     });
 
+    // Handle recording
     recordBtn.addEventListener('click', async () => {
       initAudioCtx();
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorder = new MediaRecorder(stream);
+      const deviceId = micSelect.value;
+      const constraints = { audio: { deviceId: deviceId ? { exact: deviceId } : undefined } };
+
+      if (currentStream) {
+        currentStream.getTracks().forEach(track => track.stop());
+      }
+
+      currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+      mediaRecorder = new MediaRecorder(currentStream);
       recordedChunks = [];
 
       mediaRecorder.ondataavailable = (e) => recordedChunks.push(e.data);
@@ -124,31 +168,37 @@
       };
 
       mediaRecorder.start();
+      recordBtn.classList.add('recording');
+      recordBtn.textContent = '🔴 Recording...';
       recordBtn.disabled = true;
       stopBtn.disabled = false;
     });
 
     stopBtn.addEventListener('click', () => {
-      mediaRecorder.stop();
+      if (mediaRecorder && mediaRecorder.state === 'recording') {
+        mediaRecorder.stop();
+      }
+      recordBtn.classList.remove('recording');
+      recordBtn.textContent = '🎙️ Record';
       recordBtn.disabled = false;
       stopBtn.disabled = true;
     });
 
+    // Play the processed audio
     playBtn.addEventListener('click', () => {
       if (!buffer) return;
       const reverbAmount = parseFloat(reverbControl.value);
       const gainValue = parseFloat(gainControl.value);
       const speedValue = parseFloat(speedControl.value);
 
-      source = audioCtx.createBufferSource();
+      const source = audioCtx.createBufferSource();
       source.buffer = buffer;
       source.playbackRate.value = speedValue;
 
-      gainNode = audioCtx.createGain();
+      const gainNode = audioCtx.createGain();
       gainNode.gain.value = gainValue;
 
-      convolver = audioCtx.createConvolver();
-      // Simple fake reverb (using noise buffer)
+      const convolver = audioCtx.createConvolver();
       const impulse = audioCtx.createBuffer(2, audioCtx.sampleRate * 3, audioCtx.sampleRate);
       for (let i = 0; i < impulse.length; i++) {
         impulse.getChannelData(0)[i] = (Math.random() * 2 - 1) * reverbAmount;
@@ -159,9 +209,10 @@
       source.connect(convolver);
       convolver.connect(gainNode);
       gainNode.connect(audioCtx.destination);
-      source.start(0);
+      source.start();
     });
 
+    // Export recorded audio
     exportBtn.addEventListener('click', async () => {
       const response = await fetch(player.src);
       const blob = await response.blob();
