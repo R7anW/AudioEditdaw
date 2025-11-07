@@ -414,6 +414,82 @@
       player.muted = !player.muted;
       muteBtn.textContent = player.muted ? '🔈' : '🔊';
     });
+
+    const volumeSlider = document.getElementById('volumeSlider');
+const audioVisualizer = document.getElementById('audioVisualizer');
+const visualCtx = audioVisualizer.getContext('2d');
+
+volumeSlider.addEventListener('input', () => {
+  player.volume = volumeSlider.value;
+  if (player.volume === 0) {
+    volumeSlider.style.accentColor = '#ff4d4d'; // red tint when muted
+  } else {
+    volumeSlider.style.accentColor = '#1e3c72'; // normal blue tint
+  }
+});
+
+// Setup audio context and analyser for visualizer linked to the player element
+function setupVisualizer() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (!source) source = audioCtx.createMediaElementSource(player);
+
+  if (!analyser) {
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 256;
+    source.connect(analyser);
+    analyser.connect(audioCtx.destination);
+  }
+  visualizeAudio();
+}
+
+function visualizeAudio() {
+  const bufferLength = analyser.frequencyBinCount;
+  const dataArray = new Uint8Array(bufferLength);
+
+  function draw() {
+    requestAnimationFrame(draw);
+
+    analyser.getByteFrequencyData(dataArray);
+
+    visualCtx.fillStyle = '#111';
+    visualCtx.fillRect(0, 0, audioVisualizer.width, audioVisualizer.height);
+
+    const barWidth = (audioVisualizer.width / bufferLength) * 1.5;
+    let x = 0;
+
+    for (let i = 0; i < bufferLength; i++) {
+      const barHeight = dataArray[i] / 2;
+      visualCtx.fillStyle = `rgb(${barHeight + 100}, 255, 180)`;
+      visualCtx.fillRect(x, audioVisualizer.height - barHeight, barWidth, barHeight);
+      x += barWidth + 1;
+    }
+  }
+  draw();
+}
+
+// Resize visualizer canvas on window resize
+function resizeVisualizer() {
+  audioVisualizer.width = audioVisualizer.clientWidth * window.devicePixelRatio;
+  audioVisualizer.height = audioVisualizer.clientHeight * window.devicePixelRatio;
+  visualCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
+}
+window.addEventListener('resize', resizeVisualizer);
+resizeVisualizer();
+
+// Start visualizer once the audio metadata is loaded (duration is known)
+player.addEventListener('loadedmetadata', () => {
+  if (!source) {
+    setupVisualizer();
+  }
+});
+
+// Resume audio context on first user interaction to comply with browser autoplay policies
+document.body.addEventListener('click', () => {
+  if (audioCtx && audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+});
+
   </script>
 </body>
 </html>
